@@ -60,10 +60,8 @@ export function StudyProductCard({
           </p>
         </DialogContent>
       </Dialog>
-      <div className="flex flex-1 flex-col gap-3 p-3 pt-2 sm:p-4 sm:pt-2">
-        <p className="text-xs text-[var(--text-secondary)] sm:text-sm">
-          {product.store}
-        </p>
+      <div className="flex flex-1 flex-col gap-2 p-2 pt-2 sm:p-3 sm:pt-2">
+        <p className="study-label">{product.store}</p>
         {product.options && (
           <Select value={option} onValueChange={setOption}>
             <SelectTrigger aria-label={`Option for ${product.title}`}>
@@ -86,7 +84,7 @@ export function StudyProductCard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10"
+            className="study-tab h-9"
             disabled={product.soldOut}
             aria-label={
               product.soldOut

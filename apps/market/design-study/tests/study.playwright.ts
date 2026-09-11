@@ -60,10 +60,93 @@ test.afterEach(async ({ page }) => {
   ).toEqual([])
 })
 
-test("sample catalog and screenshot fit the viewport", async ({
+// The retro entry screens gate the market on the first load of a session, so
+// tests that want the market walk the full "Press Start" path: title card,
+// then discovery, then "Browse all items".
+async function enterMarket(page: Page, url = "/") {
+  await page.goto(url)
+  const entry = page.locator("[data-start-screen]")
+  await entry.waitFor({ state: "attached" })
+  if ((await entry.getAttribute("data-open")) === "true") {
+    await page.getByRole("button", { name: "Press Start" }).click()
+    await page.getByRole("button", { name: "Browse all items" }).click()
+    await expect(entry).toHaveAttribute("data-open", "false")
+  }
+}
+
+test("Press Start opens discovery, Skip intro goes straight to the market", async ({
   page,
 }, testInfo) => {
   await page.goto("/")
+  const entry = page.locator("[data-start-screen]")
+  await expect(entry).toHaveAttribute("data-open", "true")
+  await expect(entry).toHaveAttribute("data-entry-panel", "title")
+  await expect(page.getByRole("button", { name: "Press Start" })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath("title.png"),
+    animations: "disabled",
+  })
+
+  // "Press Start" advances to discovery rather than straight to the market.
+  await page.getByRole("button", { name: "Press Start" }).click()
+  await expect(entry).toHaveAttribute("data-entry-panel", "discovery")
+  await expect(
+    page.getByRole("heading", { name: "What are you looking for?" })
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Clothing/ })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath("discovery.png"),
+    animations: "disabled",
+  })
+
+  // Typing narrows the auto-populated merchant chips.
+  const entrySearch = page.getByRole("searchbox", {
+    name: "Search sample products",
+  })
+  await entrySearch.fill("paper")
+  await expect(page.getByRole("button", { name: /Paper & Ink/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /Common Thread/ })).toHaveCount(
+    0
+  )
+
+  // A merchant chip opens the market filtered to that shop. Paper & Ink has
+  // three fixtures, so the shop filter must carry across the handoff.
+  await page.getByRole("button", { name: /Paper & Ink/ }).click()
+  await expect(entry).toHaveAttribute("data-open", "false")
+  await expect(
+    page.getByRole("heading", { name: "Products", exact: true })
+  ).toBeVisible()
+  await expect(page.getByText("3 sample products")).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Shop" })).toContainText(
+    "Paper & Ink"
+  )
+
+  // Same-session reload skips the intro entirely.
+  await page.reload()
+  await expect(page.locator("[data-start-screen]")).toHaveAttribute(
+    "data-open",
+    "false"
+  )
+})
+
+test("skip intro bypasses discovery and shows the full catalog", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const entry = page.locator("[data-start-screen]")
+  await expect(entry).toHaveAttribute("data-entry-panel", "title")
+  await page.getByRole("button", { name: "Skip intro" }).click()
+  await expect(entry).toHaveAttribute("data-open", "false")
+  await expect(
+    page.getByRole("heading", { name: "What are you looking for?" })
+  ).toHaveCount(0)
+  await expect(page.getByText("12 sample products")).toBeVisible()
+})
+
+test("sample catalog and screenshot fit the viewport", async ({
+  page,
+}, testInfo) => {
+  await enterMarket(page)
   await expect(
     page.getByRole("heading", { name: "Products", exact: true })
   ).toBeVisible()
@@ -90,7 +173,7 @@ test("sample catalog and screenshot fit the viewport", async ({
 test("search, category, shop, sort, and empty recovery use fixtures", async ({
   page,
 }) => {
-  await page.goto("/")
+  await enterMarket(page)
   await page
     .getByRole("searchbox", { name: "Search sample products" })
     .fill("coffee-does-not-exist")
@@ -122,7 +205,7 @@ test("search, category, shop, sort, and empty recovery use fixtures", async ({
 test("options and cart are pretend, dialogs restore keyboard focus", async ({
   page,
 }) => {
-  await page.goto("/")
+  await enterMarket(page)
   await page
     .getByRole("combobox", { name: "Option for Everyday cotton tee" })
     .click()
@@ -170,13 +253,13 @@ test("options and cart are pretend, dialogs restore keyboard focus", async ({
 test("theme cycles and persists without login; both appearances fit", async ({
   page,
 }, testInfo) => {
-  await page.goto("/")
+  await enterMarket(page)
   const initial =
     testInfo.project.use.colorScheme === "dark" ? "night-market" : "day-market"
   await expect(page.locator("html")).toHaveAttribute("data-theme", initial)
   await page
     .getByRole("button", {
-      name: "Appearance: System. Switch to Day Market",
+      name: "Appearance: System. Switch to Light",
       exact: true,
     })
     .click()
@@ -188,7 +271,7 @@ test("theme cycles and persists without login; both appearances fit", async ({
   })
   await page
     .getByRole("button", {
-      name: "Appearance: Day Market. Switch to Night Market",
+      name: "Appearance: Light. Switch to Dark",
       exact: true,
     })
     .click()
@@ -199,7 +282,7 @@ test("theme cycles and persists without login; both appearances fit", async ({
   await page.reload()
   await expect(
     page.getByRole("button", {
-      name: "Appearance: Night Market. Switch to System",
+      name: "Appearance: Dark. Switch to System",
       exact: true,
     })
   ).toBeVisible()
@@ -216,7 +299,7 @@ test("theme cycles and persists without login; both appearances fit", async ({
 })
 
 test("study controls expose loading and empty states", async ({ page }) => {
-  await page.goto("/")
+  await enterMarket(page)
   await page.getByText("Study controls", { exact: true }).click()
   await page.getByRole("combobox", { name: "Preview state" }).click()
   await page.getByRole("option", { name: "Loading", exact: true }).click()
@@ -237,7 +320,7 @@ test("study controls expose loading and empty states", async ({ page }) => {
 })
 
 test("built page also runs without production services", async ({ page }) => {
-  await page.goto("http://127.0.0.1:7071/")
+  await enterMarket(page, "http://127.0.0.1:7071/")
   await expect(page.locator("[data-product-id]")).toHaveCount(12)
   await page
     .getByRole("button", { name: "Add Carry-all canvas tote to demo cart" })
@@ -247,7 +330,7 @@ test("built page also runs without production services", async ({ page }) => {
   await page.keyboard.press("Escape")
   await page
     .getByRole("button", {
-      name: "Appearance: System. Switch to Day Market",
+      name: "Appearance: System. Switch to Light",
       exact: true,
     })
     .click()

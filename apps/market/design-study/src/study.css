@@ -43,6 +43,14 @@
   --icon-swap-start-scale: 0.25;
   --icon-swap-ease: ease-in-out;
 
+  /* transitions.dev "panel reveal" (#07) variables — drives the title screen
+     slide/fade/cross-blur. */
+  --panel-open-dur: 400ms;
+  --panel-close-dur: 350ms;
+  --panel-translate-y: 100px;
+  --panel-blur: 2px;
+  --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   /* Swiss modular scale — 1.250 major third on a 16px base */
   --step--1: 0.8rem; /* 12.8px — captions, meta */
   --step-0: 1rem; /* 16px   — body anchor */
@@ -56,12 +64,52 @@
 /* EDIT HERE: study-only layout controls. Shared production themes stay untouched. */
 :root {
   --study-content-width: 76rem;
-  --study-card-radius: var(--radius-xl);
   --study-card-gap: 1rem;
-  --study-card-background: var(--surface);
   /* Shared brand-lockup size (logo wordmark + "market" label) on the Swiss
      scale; raised one step on wider viewports via the media query below. */
   --study-brand-word: var(--step-2);
+
+  /* ── Retro game skin (Phase 2) ──────────────────────────────────────────
+     Square geometry, hard bevels, and the Oshi palette. Every color below
+     derives from the five documented anchors in docs/design/oshi/palette.md;
+     the Zelda / Cyberpunk references only inform layout and interaction
+     vocabulary, never color. */
+  --oshi-purple: #9a72aa;
+  --oshi-orange: #f15a30;
+  --oshi-gray: #b6bfc1;
+  --oshi-teal: #62c6bf;
+  --oshi-olive: #8b835b;
+
+  --game-radius: 3px; /* small rounded square slots */
+  --game-radius-lg: 6px;
+  --game-border: 2px;
+  --game-bevel-light: color-mix(in srgb, white 65%, transparent);
+  --game-bevel-dark: color-mix(in srgb, black 22%, transparent);
+
+  /* Defaults; each theme overrides the surface/palette set below. */
+  --game-surface: var(--surface);
+  --game-surface-2: var(--surface-elevated);
+  --game-slot-bg: var(--surface-elevated);
+  --game-ink: var(--text-primary);
+  --game-panel-border: var(--border);
+  --game-accent: var(--oshi-purple);
+  --game-accent-2: var(--oshi-teal);
+  --game-select: var(--oshi-olive);
+
+  /* ── Cursor pixel field (Phase 2.7) ─────────────────────────────────────
+     A chunky canvas grid behind the welcome screens; the pointer displaces
+     cells within a radius, tinting them toward the accents. Colours are
+     mixed from the same five anchors (never the Zelda/Cyberpunk references,
+     which only inform shape and motion). The day/night blocks below re-mix
+     the ground and base cell so the field reads correctly in both themes. */
+  --field-ground: color-mix(in srgb, var(--oshi-olive) 16%, white);
+  --field-base: color-mix(in srgb, var(--oshi-olive) 30%, white);
+  --field-accent-1: var(--oshi-purple);
+  --field-accent-2: var(--oshi-teal);
+  --field-accent-3: var(--oshi-orange);
+
+  --study-card-radius: var(--game-radius);
+  --study-card-background: var(--game-surface);
 }
 
 /* To explore theme-specific values, add overrides inside these selectors.
@@ -69,10 +117,52 @@
    :root[data-theme="night-market"] { --study-card-background: var(--surface); }
    These files are loaded only by this study, never the production app. */
 
-/* Oshi light mode: white page background. Scoped to the day-market theme
-   attribute so it beats the shared theme's own background declaration. */
+/* Oshi light "Day Market". Scoped to the day-market theme attribute so it beats
+   the shared theme's own background declaration.
+
+   The ground is an Olive (#8B835B) tint — the palette's earth anchor — rather
+   than the Gray anchor, so the day surfaces stay warm. Slots sit brighter than
+   the panels, ink and borders are Olive-derived, and Purple/Teal/Orange stay
+   reserved for accents. */
 :root[data-theme="day-market"] {
-  --background: white;
+  --background: color-mix(in srgb, #8b835b 9%, white); /* Olive paper */
+  --game-surface: color-mix(in srgb, #8b835b 14%, white);
+  --game-surface-2: color-mix(in srgb, #8b835b 21%, white);
+  --game-slot-bg: color-mix(in srgb, #8b835b 5%, white);
+  --game-ink: color-mix(in srgb, #8b835b 42%, black); /* Olive ink */
+  --game-panel-border: color-mix(in srgb, #8b835b 34%, white);
+  --game-accent: #9a72aa; /* Purple */
+  --game-accent-2: #62c6bf; /* Teal */
+  --game-select: #f15a30; /* Orange */
+  --game-bevel-light: color-mix(in srgb, white 70%, transparent);
+  --game-bevel-dark: color-mix(in srgb, #8b835b 34%, transparent);
+
+  /* Day field: hazy Olive paper ground with darker Olive cells so the grid
+     stays quiet behind the title card. */
+  --field-ground: color-mix(in srgb, #8b835b 12%, white);
+  --field-base: color-mix(in srgb, #8b835b 46%, white);
+}
+
+/* Oshi dark "Night Market". The Olive anchor (#8B835B) darkened anchors the
+   ground; Gray carries the ink, and the accent trio is unchanged so a single
+   control language holds across both themes. */
+:root[data-theme="night-market"] {
+  --background: color-mix(in srgb, #8b835b 20%, black);
+  --game-surface: color-mix(in srgb, #8b835b 26%, black);
+  --game-surface-2: color-mix(in srgb, #8b835b 34%, black);
+  --game-slot-bg: color-mix(in srgb, #8b835b 42%, black);
+  --game-ink: color-mix(in srgb, #b6bfc1 88%, white); /* Gray ink */
+  --game-panel-border: color-mix(in srgb, #b6bfc1 34%, black);
+  --game-accent: #9a72aa; /* Purple */
+  --game-accent-2: #62c6bf; /* Teal */
+  --game-select: #f15a30; /* Orange */
+  --game-bevel-light: color-mix(in srgb, white 12%, transparent);
+  --game-bevel-dark: color-mix(in srgb, black 55%, transparent);
+
+  /* Night field: deep Olive ground with dim Olive cells; the accent trio
+     carries the pop when the pointer displaces them. */
+  --field-ground: color-mix(in srgb, #8b835b 16%, black);
+  --field-base: color-mix(in srgb, #8b835b 30%, black);
 }
 
 body {
@@ -257,45 +347,63 @@ summary {
   list-style: none;
   padding: 0;
 }
+/* Retro slot tile: square bevel frame with an inset item slot, modelled on the
+   Zelda / Cyberpunk references. */
 .study-card {
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--study-card-radius);
-  background: var(--study-card-background);
-  box-shadow: var(--shadow-sm);
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+/* Highlight the whole slot on hover/focus-within, like a selected inventory
+   cell. No transition here — motion is Phase 5. */
+.study-card:hover,
+.study-card:focus-within {
+  outline: 2px solid var(--game-select);
+  outline-offset: -2px;
 }
 .study-product-link {
   width: 100%;
+  padding: 0.5rem 0.5rem 0;
   text-align: left;
 }
 .study-product-link:focus-visible {
   outline-offset: -3px;
 }
+/* The inset square item slot. */
 .study-artwork {
   display: flex;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   width: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
+  gap: 0.5rem;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-slot-bg);
+  color: var(--game-ink);
+  box-shadow:
+    inset 2px 2px 0 var(--game-bevel-dark),
+    inset -2px -2px 0 var(--game-bevel-light);
 }
 .study-artwork[data-artwork="shirt"],
 .study-artwork[data-artwork="bag"] {
-  background: color-mix(in srgb, var(--primary-500) 12%, var(--background));
+  color: var(--oshi-purple);
 }
 .study-artwork[data-artwork="coffee"],
 .study-artwork[data-artwork="mug"] {
-  background: color-mix(in srgb, var(--secondary-500) 12%, var(--background));
+  color: var(--oshi-orange);
 }
 .study-artwork[data-artwork="print"],
 .study-artwork[data-artwork="notebook"] {
-  background: color-mix(in srgb, var(--accent-500) 12%, var(--background));
+  color: var(--game-accent-2);
 }
 .study-skip-link {
   position: absolute;
@@ -309,6 +417,403 @@ summary {
 }
 .study-skip-link:focus {
   transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------
+ * Retro entry screens: the Phase 1 title card plus the Phase 2.5 discovery
+ * panel ("What are you looking for?").
+ *
+ * The overlay uses the transitions.dev "panel reveal" recipe (#07) verbatim —
+ * the .t-panel-slide rules and its prefers-reduced-motion guard below. The
+ * .study-entry rules only supply the study's own shell (position, palette,
+ * type); they do not alter the recipe's transform/opacity/filter behaviour.
+ *
+ * The two panels swap with the Oshi-standard "icon swap" tokens (#09, see
+ * docs/design/oshi/README.md): the incoming panel resolves from blur + 0.25
+ * scale. Symmetric, CSS-only, no JS orchestration.
+ * ------------------------------------------------------------------------- */
+.study-entry {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: var(--background);
+}
+.study-entry-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+.study-entry-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  animation: study-entry-swap-in var(--icon-swap-dur) var(--icon-swap-ease) both;
+}
+@keyframes study-entry-swap-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--icon-swap-blur));
+    transform: scale(var(--icon-swap-start-scale));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+.study-entry .study-start-title {
+  font-size: var(--step-4);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.study-start-subtitle {
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.study-start-keys {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+.study-start-skip {
+  border: 0;
+  background: none;
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+/* Keep the page from scrolling behind the fixed overlay while it is up. */
+body:has(.study-entry[data-open="true"]) {
+  overflow: hidden;
+}
+
+/* Discovery panel. */
+.study-discovery {
+  align-items: stretch;
+  width: 100%;
+  max-width: 46rem;
+  text-align: left;
+}
+.study-discovery-title {
+  font-size: var(--step-3);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.study-discovery-desc {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+.study-discovery-search {
+  margin-top: 0.25rem;
+}
+.study-discovery-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.study-discovery-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.study-discovery-tile {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  color: var(--game-ink);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-discovery-tile:hover,
+.study-discovery-tile:focus-visible {
+  border-color: var(--game-select);
+  outline: 2px solid var(--game-select);
+  outline-offset: -2px;
+}
+.study-discovery-tile[data-match] {
+  border-color: var(--game-select);
+  background: color-mix(in srgb, var(--game-select) 18%, var(--game-surface-2));
+}
+.study-discovery-tile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-discovery-tile-count {
+  color: var(--text-secondary);
+}
+.study-discovery-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* The chip label and its count need an explicit gap; .study-tab is not flex. */
+.study-discovery-chips .study-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.study-discovery-empty {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+.study-discovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-entry-panel {
+    animation: none;
+  }
+}
+
+/* transitions.dev #07 panel reveal — pasted verbatim. */
+.t-panel-slide {
+  transform: translateY(var(--panel-translate-y));
+  opacity: 0;
+  filter: blur(var(--panel-blur));
+  pointer-events: none;
+  transition:
+    transform var(--panel-close-dur) var(--panel-ease),
+    opacity var(--panel-close-dur) var(--panel-ease),
+    filter var(--panel-close-dur) var(--panel-ease);
+  will-change: transform, opacity, filter;
+}
+.t-panel-slide[data-open="true"] {
+  transform: translateY(0);
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+  transition:
+    transform var(--panel-open-dur) var(--panel-ease),
+    opacity var(--panel-open-dur) var(--panel-ease),
+    filter var(--panel-open-dur) var(--panel-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-panel-slide {
+    transition: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 2 — market surface: paper frame, status bar, panels, tabs, footer.
+ * ------------------------------------------------------------------------- */
+.study-frame {
+  border-top: var(--game-border) solid var(--game-panel-border);
+  background: var(--game-surface);
+}
+
+/* Uppercase micro-labels for the retro HUD feel. */
+.study-label {
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.study-notice {
+  border-bottom: var(--game-border) solid var(--game-panel-border);
+  background: var(--game-surface);
+  color: var(--text-secondary);
+}
+
+.study-header-bar {
+  border-bottom: var(--game-border) solid var(--game-panel-border);
+  background: var(--game-surface);
+}
+
+/* Zelda-style status bar directly under the header: slate, theme control, and
+   the found-items (cart) control all live here. */
+.study-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+.study-status-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Titled sections with a small square marker, echoing item-panel headers. */
+.study-section {
+  margin-bottom: 1.75rem;
+}
+.study-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.study-section-desc {
+  margin-top: 0.25rem;
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+
+/* Framed panel for the filter controls. */
+.study-panel {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  padding: 1rem;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+
+/* Square category tabs. */
+.study-tab {
+  border-radius: var(--game-radius) !important;
+  border-width: var(--game-border) !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: var(--step--1);
+  height: auto;
+  padding: 0.4rem 0.75rem;
+}
+.study-tab[aria-pressed="true"] {
+  border-color: var(--game-select) !important;
+  background: color-mix(in srgb, var(--game-select) 20%, var(--game-surface));
+  color: var(--game-ink);
+}
+
+/* Empty state as a framed slot. */
+.study-empty {
+  border: var(--game-border) dashed var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+}
+
+/* "Study controls" disclosure framed like a system panel. */
+.study-controls {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+}
+.study-controls > summary {
+  list-style: none;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--step--1);
+}
+.study-controls > summary::-webkit-details-marker {
+  display: none;
+}
+.study-controls[open] > summary {
+  border-bottom: var(--game-border) solid var(--game-panel-border);
+}
+.study-controls-body {
+  padding: 1rem;
+}
+
+/* Bottom control/status rail, like a game's control-hint bar. */
+.study-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  margin-top: 2rem;
+  padding-block: 0.75rem;
+  border-top: var(--game-border) solid var(--game-panel-border);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.study-rail-sep {
+  opacity: 0.5;
+}
+
+/* Title screen on the game language (Phase 2 refreshed the Phase 1 shell). */
+.study-entry {
+  /* Transparent so the fixed pixel field shows through at the edges; the
+     .study-entry-inner scrim below keeps the centre legible. */
+  background: none;
+}
+.study-entry .study-entry-inner {
+  position: relative;
+  z-index: 1;
+  padding: clamp(2rem, 6vw, 4rem) clamp(1.5rem, 5vw, 3.5rem);
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-lg);
+  background: radial-gradient(
+    120% 100% at 50% 42%,
+    var(--game-surface) 58%,
+    color-mix(in srgb, var(--game-surface) 88%, transparent)
+  );
+  box-shadow: 0 18px 60px -30px color-mix(in srgb, black 65%, transparent);
+  backdrop-filter: blur(2px);
+}
+/* Discovery carries more content, so it gets a solid panel of its own. */
+.study-entry[data-entry-panel="discovery"] .study-entry-inner {
+  background: var(--game-surface);
+}
+.study-entry .study-start-title {
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--game-ink);
+  text-shadow:
+    0 2px 0 color-mix(in srgb, var(--oshi-olive) 30%, transparent),
+    0 0 22px color-mix(in srgb, var(--game-surface) 80%, transparent);
+}
+.study-start-subtitle,
+.study-start-keys,
+.study-start-skip {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+/* Primary game button: square, Oshi accent, hard bevel. */
+.study-btn-game {
+  border-radius: var(--game-radius) !important;
+  border: var(--game-border) solid
+    color-mix(in srgb, black 30%, var(--game-accent)) !important;
+  background: var(--game-accent) !important;
+  color: #fdfbff !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
 }
 
 @media (min-width: 48rem) {
@@ -330,4 +835,24 @@ summary {
   .study-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Cursor pixel displacement field (Phase 2.7)
+ *
+ * A fixed canvas of chunky pixels painted behind the entry overlay — the
+ * only backdrop. StudyPixelField draws the grid and displaces cells toward
+ * the pointer; colours come from the --field-* tokens (Oshi anchors, themed
+ * per day/night). pointer-events none so it never blocks the UI.
+ * ------------------------------------------------------------------------- */
+.study-pixel-field {
+  position: fixed;
+  inset: 0;
+  /* Below the entry panel (70). */
+  z-index: 69;
+  pointer-events: none;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: var(--field-ground);
 }

@@ -23,7 +23,7 @@ type Props = {
 
 export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
   return (
-    <header className="study-header-bar border-b border-[var(--border)] bg-[var(--background)]">
+    <header className="study-header-bar">
       <div className="study-shell study-header">
         <a
           href="#products"
@@ -49,16 +49,17 @@ export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
             placeholder="Search products or shops"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
-            className="h-10 pl-9"
+            className="h-10 rounded-[var(--game-radius)] border-2 border-[var(--game-panel-border)] bg-[var(--game-slot-bg)] pl-9"
           />
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="study-status-controls">
           <StudyThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
+                className="study-tab"
                 aria-label={`Demo cart, ${cartCount} items`}
               >
                 <ShoppingCart className="size-4" aria-hidden="true" />

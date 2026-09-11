@@ -9,6 +9,9 @@ import {
 } from "lucide-react"
 import type { StudyProduct } from "./fixtures"
 
+// Retro slot glyphs. No pixel fonts or image assets (local-only CSP), so the
+// pixel feel comes from square geometry, hard strokes, and the Oshi palette
+// applied per artwork category in study.css.
 const icons = {
   shirt: Shirt,
   coffee: Coffee,
@@ -33,11 +36,11 @@ export function ProductArtwork({ product }: { product: StudyProduct }) {
   return (
     <div className="study-artwork" data-artwork={product.artwork ?? "missing"}>
       <Icon
-        className="size-16 sm:size-20"
-        strokeWidth={1.25}
+        className="size-14 sm:size-16"
+        strokeWidth={1.75}
         aria-hidden="true"
       />
-      <span className="text-xs">
+      <span className="study-label">
         {product.artwork ? "Sample artwork" : "No image available"}
       </span>
     </div>
