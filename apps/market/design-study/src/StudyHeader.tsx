@@ -1,5 +1,8 @@
 import { Search, ShoppingCart } from "lucide-react"
-import logo from "../../public/images/logo/logo-full.svg"
+import { StudyThemeToggle } from "./StudyThemeToggle"
+// Study-local logo recolored to the Oshi palette purple (#9A72AA);
+// the production logo at apps/market/public/images/logo/logo-full.svg is untouched.
+import logo from "./logo-full-oshi.svg"
 import {
   Button,
   Dialog,
@@ -9,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
   Input,
-  ThemeToggleButton,
 } from "./ui"
 
 type Props = {
@@ -21,15 +23,17 @@ type Props = {
 
 export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
   return (
-    <header className="border-b border-[var(--border)]">
+    <header className="study-header-bar border-b border-[var(--border)] bg-[var(--background)]">
       <div className="study-shell study-header">
         <a
           href="#products"
           className="flex items-center gap-2"
           aria-label="Conduit Market products"
         >
-          <img src={logo} alt="Conduit" className="w-28" />
-          <span className="text-lg text-[var(--text-secondary)]">market</span>
+          <img src={logo} alt="Conduit" className="study-brand-logo" />
+          <span className="study-brand-word text-[var(--text-secondary)]">
+            market
+          </span>
         </a>
         <div className="study-search relative">
           <label htmlFor="product-search" className="sr-only">
@@ -49,7 +53,7 @@ export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
           />
         </div>
         <div className="flex items-center justify-end gap-2">
-          <ThemeToggleButton />
+          <StudyThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
               <Button

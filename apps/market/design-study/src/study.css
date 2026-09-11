@@ -1,7 +1,57 @@
+/*
+ * MARKET DESIGN STUDY — NOT PRODUCTION.
+ *
+ * This page is a visual design exercise only. Do NOT port these styles,
+ * fonts, tokens, or layout rules into production apps or `packages/ui`.
+ * Production typography remains Bricolage Grotesque; production tokens live
+ * in `packages/ui/src/styles/theme.css` and must stay untouched here.
+ * See docs/design/oshi/README.md for the Oshi production boundary.
+ */
 @import "tailwindcss" source(none);
 @config "../../tailwind.config.js";
 @source ".";
 @source "../../../../packages/ui/src/components";
+
+/*
+ * Oshi typography — study-scoped. The study uses the shared Bricolage
+ * Grotesque family (OFL-licensed, loaded by the shared typography.css), not
+ * Neue Montreal: that typeface is commercially licensed and must not be
+ * committed to this public repository. Hierarchy still comes from
+ * size/weight/position.
+ */
+
+/*
+ * Swiss typographic system (.agents/skills/swiss-typography/):
+ * 1.250 major-third modular scale on a 16px base, 8px baseline rhythm.
+ * These override the shared voice-scale sizes for this study only.
+ */
+:root {
+  /* Oshi accent: focus rings and brand highlights use the palette purple
+     (#9A72AA) instead of the production primary (#BB00FF family). */
+  --oshi-purple: #9a72aa;
+  --ring: var(--oshi-purple);
+
+  /* transitions.dev "tabs sliding" (#16) variables, Oshi-adapted */
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tabs-bar-bg: var(--surface);
+  --tabs-pill-bg: var(--surface-elevated);
+
+  /* transitions.dev "icon swap" (#09) variables */
+  --icon-swap-dur: 250ms;
+  --icon-swap-blur: 2px;
+  --icon-swap-start-scale: 0.25;
+  --icon-swap-ease: ease-in-out;
+
+  /* Swiss modular scale — 1.250 major third on a 16px base */
+  --step--1: 0.8rem; /* 12.8px — captions, meta */
+  --step-0: 1rem; /* 16px   — body anchor */
+  --step-1: 1.25rem; /* 20px   — lead, small heading */
+  --step-2: 1.563rem; /* ~25px  — section heading */
+  --step-3: 1.953rem; /* ~31px  — page heading */
+  --step-4: 2.441rem; /* ~39px  — display */
+  --step-5: 3.052rem; /* ~49px  — hero display */
+}
 
 /* EDIT HERE: study-only layout controls. Shared production themes stay untouched. */
 :root {
@@ -9,6 +59,9 @@
   --study-card-radius: var(--radius-xl);
   --study-card-gap: 1rem;
   --study-card-background: var(--surface);
+  /* Shared brand-lockup size (logo wordmark + "market" label) on the Swiss
+     scale; raised one step on wider viewports via the media query below. */
+  --study-brand-word: var(--step-2);
 }
 
 /* To explore theme-specific values, add overrides inside these selectors.
@@ -16,11 +69,21 @@
    :root[data-theme="night-market"] { --study-card-background: var(--surface); }
    These files are loaded only by this study, never the production app. */
 
+/* Oshi light mode: white page background. Scoped to the day-market theme
+   attribute so it beats the shared theme's own background declaration. */
+:root[data-theme="day-market"] {
+  --background: white;
+}
+
 body {
   margin: 0;
   background: var(--background);
   color: var(--text-primary);
   font-family: var(--font-body);
+  font-size: var(--step-0);
+  /* 24px — a clean multiple of the 8px baseline */
+  line-height: 1.5rem;
+  text-align: left; /* flush-left, ragged-right */
 }
 
 button,
@@ -42,9 +105,125 @@ summary {
 .study-page {
   min-height: 100dvh;
 }
+
+/* Study theme toggle: three-state segmented control with a sliding pill
+   (transitions.dev #16 tabs sliding). */
+.study-theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 48px;
+  background: var(--tabs-bar-bg);
+}
+
+.study-theme-toggle-pill {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: 32px;
+  width: 0;
+  background: var(--tabs-pill-bg);
+  border-radius: 48px;
+  transform: translateX(0);
+  transition:
+    transform var(--tabs-dur) var(--tabs-ease),
+    width var(--tabs-dur) var(--tabs-ease);
+  will-change: transform, width;
+  pointer-events: none;
+}
+
+/* Compact cycling toggle: icon-swap recipe (#09). All three glyphs stay
+   stacked in one grid cell; the active one fades in, the others fade out
+   with blur + scale. Pure CSS via data-state. */
+.study-theme-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.study-icon-swap {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+.study-icon-swap .study-icon-swap-glyph {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    opacity var(--icon-swap-dur) var(--icon-swap-ease),
+    filter var(--icon-swap-dur) var(--icon-swap-ease),
+    transform var(--icon-swap-dur) var(--icon-swap-ease);
+  will-change: opacity, filter, transform;
+}
+
+.study-icon-swap[data-state="day-market"] .study-icon-swap-glyph:nth-child(1),
+.study-icon-swap[data-state="night-market"] .study-icon-swap-glyph:nth-child(2),
+.study-icon-swap[data-state="system"] .study-icon-swap-glyph:nth-child(3) {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+
+.study-icon-swap[data-state="day-market"] .study-icon-swap-glyph:nth-child(2),
+.study-icon-swap[data-state="day-market"] .study-icon-swap-glyph:nth-child(3),
+.study-icon-swap[data-state="night-market"] .study-icon-swap-glyph:nth-child(1),
+.study-icon-swap[data-state="night-market"] .study-icon-swap-glyph:nth-child(3),
+.study-icon-swap[data-state="system"] .study-icon-swap-glyph:nth-child(1),
+.study-icon-swap[data-state="system"] .study-icon-swap-glyph:nth-child(2) {
+  opacity: 0;
+  filter: blur(var(--icon-swap-blur));
+  transform: scale(var(--icon-swap-start-scale));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-theme-toggle-pill,
+  .study-theme-toggle-option,
+  .study-icon-swap .study-icon-swap-glyph {
+    transition: none !important;
+  }
+}
+
+/*
+ * The shared Input hardcodes Tailwind focus-visible:ring-primary-500
+ * (production purple). Set the ring color directly on focused elements
+ * inside the study; unlayered rules win over Tailwind's layered utilities,
+ * and production is untouched.
+ */
+.study-page :focus-visible {
+  --tw-ring-color: var(--oshi-purple);
+}
+
+/* Swiss hierarchy: page heading sits at step-3, weight 500 (max available) */
+.study-page h1 {
+  font-size: var(--step-3);
+  line-height: 1.25; /* multiple of the 8px baseline */
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  text-align: left;
+}
+
+/* Section-level labels: step-1, weight 500 */
+.study-page h2 {
+  font-size: var(--step-1);
+  line-height: 1.5; /* 24px baseline multiple */
+  font-weight: 500;
+  text-align: left;
+}
 .study-shell {
   width: min(100% - 2rem, var(--study-content-width));
   margin-inline: auto;
+}
+/* Sticky header: stays fixed as the user scrolls; solid background so
+   content passes underneath without showing through. */
+.study-header-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 .study-header {
   display: grid;
@@ -52,6 +231,20 @@ summary {
   gap: 1rem;
   align-items: center;
   padding-block: 1rem;
+}
+/* Brand lockup: the logo's "conduit" wordmark and the adjacent "market" label
+   are matched to the same visual cap/x-height and both sit on the Swiss scale.
+   The logo's "conduit" x-height measures 41.2 of the SVG's 115 units and the
+   study's Bricolage x-height is 0.517em, so the logo height tracks the label
+   size by 115*0.517/41.2 ≈ 1.443 to keep the two words equal. */
+.study-brand-logo {
+  height: calc(var(--study-brand-word) * 1.443);
+  width: auto;
+}
+.study-brand-word {
+  font-size: var(--study-brand-word);
+  line-height: 1;
+  font-weight: var(--font-medium);
 }
 .study-search {
   grid-column: 1 / -1;
@@ -119,6 +312,9 @@ summary {
 }
 
 @media (min-width: 48rem) {
+  :root {
+    --study-brand-word: var(--step-3);
+  }
   .study-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
