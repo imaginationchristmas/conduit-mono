@@ -1,17 +1,16 @@
-import { useRef, useState } from "react"
-import { categories, products, stores, type StudyProduct } from "./fixtures"
+import { useEffect, useRef, useState } from "react"
+import { formatSats, type StudyProduct } from "./fixtures"
+import { categories, products, stores } from "./fixtures"
+import { GameHud, type FoundItem } from "./GameHud"
+import { FoundItemSlot } from "./FoundItemSlot"
+import { StudyDock } from "./StudyDock"
 import { StudyEntryScreen } from "./StudyEntryScreen"
 import { StudyHeader } from "./StudyHeader"
 import { StudyPixelField } from "./StudyPixelField"
 import { StudyProductCard } from "./StudyProductCard"
-import {
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui"
+import { StudySidePanel } from "./StudySidePanel"
+import { loadSettings, saveSettings, type StudySettings } from "./settings"
+import { Button } from "./ui"
 
 // Once-per-session gate for the retro entry screens. sessionStorage is scoped to
 // this study's origin and cleared when the tab session ends.
@@ -37,9 +36,15 @@ export function StudyPage() {
   const [category, setCategory] = useState("All products")
   const [store, setStore] = useState("all")
   const [sort, setSort] = useState("featured")
-  const [preview, setPreview] = useState("loaded")
-  const [cartCount, setCartCount] = useState(0)
-  const [notice, setNotice] = useState("")
+  const [foundItems, setFoundItems] = useState<FoundItem[]>([])
+  // Centered checkout overlay (like the entry screen): the market hides while
+  // it is open so the payment fields are easy to read.
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  // Phase 3 settings: loaded once from localStorage, persisted on change.
+  const [settings, setSettings] = useState<StudySettings>(loadSettings)
+  useEffect(() => {
+    saveSettings(settings)
+  }, [settings])
 
   // Discovery options auto-populate from the same fixture set the market
   // renders, so the entry screen can never offer a category or merchant with no
@@ -69,21 +74,31 @@ export function StudyPage() {
           ? b.sats - a.sats
           : 0
     )
-  const shownProducts = preview === "empty" ? [] : visibleProducts
+  const shownProducts = visibleProducts
 
   function resetFilters() {
     setQuery("")
     setCategory("All products")
     setStore("all")
     setSort("featured")
-    setPreview("loaded")
   }
 
-  function addToDemoCart(product: StudyProduct, option?: string) {
-    setCartCount((count) => count + 1)
-    setNotice(
-      `Added ${product.title}${option ? ` (${option})` : ""} to the demo cart.`
-    )
+  // Collect into the found-items box: one stack per product, count bumps on a
+  // repeat collect. Session-only — resets on reload. The chosen option is not
+  // tracked in this preview (stacks are per product). The option argument from
+  // StudyProductCard is intentionally dropped — stacks are per product.
+  function collectItem(product: StudyProduct) {
+    setFoundItems((items) => {
+      const existing = items.find((item) => item.product.id === product.id)
+      if (existing) {
+        return items.map((item) =>
+          item.product.id === product.id
+            ? { ...item, count: item.count + 1 }
+            : item
+        )
+      }
+      return [...items, { product, count: 1 }]
+    })
   }
 
   // Leaving the entry overlay always marks the session and lands focus in the
@@ -127,28 +142,55 @@ export function StudyPage() {
     dismissEntry()
   }
 
+  // Checkout total across all stacks.
+  const checkoutTotalSats = foundItems.reduce(
+    (sum, item) => sum + item.product.sats * item.count,
+    0
+  )
+
   return (
-    <div className="study-page">
-      <div className="study-notice px-4 py-2 text-center text-xs">
+    <div
+      className="study-page"
+      data-entry-open={entry !== null ? "true" : undefined}
+      data-checkout-open={checkoutOpen ? "true" : undefined}
+    >
+      <div
+        className="study-notice px-4 py-2 text-center"
+        style={{ fontSize: "var(--step--1)" }}
+      >
         <strong className="text-[var(--text-primary)]">Design study</strong> ·
         Sample data only · No real purchases
       </div>
       <div
         className="study-market"
-        inert={entry !== null ? true : undefined}
-        aria-hidden={entry !== null ? true : undefined}
+        data-checkout-open={checkoutOpen ? "true" : undefined}
+        inert={entry !== null || checkoutOpen ? true : undefined}
+        aria-hidden={entry !== null || checkoutOpen ? true : undefined}
       >
         <a href="#products" className="study-skip-link">
           Skip to products
         </a>
-        <StudyHeader
-          query={query}
-          onQuery={setQuery}
-          cartCount={cartCount}
-          onClearCart={() => {
-            setCartCount(0)
-            setNotice("Demo cart cleared.")
+        <StudyHeader />
+        {/* Left HUD rail: filters as a foldable box. On desktop it is pinned;
+            on mobile it stacks inline above the catalogue. "Find an item"
+            type-ahead narrows the market to the chosen product. */}
+        <StudySidePanel
+          category={category}
+          categories={categories}
+          onCategory={setCategory}
+          store={store}
+          stores={stores}
+          onStore={setStore}
+          sort={sort}
+          onSort={setSort}
+          onResetFilters={resetFilters}
+          products={products}
+          onFindItem={(product) => {
+            setQuery(product.title)
+            setCategory("All products")
+            setStore("all")
           }}
+          resultCount={shownProducts.length}
         />
         <main
           ref={mainRef}
@@ -156,113 +198,37 @@ export function StudyPage() {
           tabIndex={-1}
           className="study-shell py-7 sm:py-10"
         >
-          <div className="study-section">
-            <h1 className="study-section-title">
-              <span aria-hidden="true">◆</span> Products
-            </h1>
-            <p className="study-section-desc">
-              Discover goods from independent shops.
-            </p>
-          </div>
-
-          <div className="study-panel mb-5">
-            <fieldset>
-              <legend className="study-label mb-2">Category</legend>
-              <div className="flex flex-wrap gap-2">
-                {["All products", ...categories].map((value) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    variant="outline"
-                    aria-pressed={category === value}
-                    className="study-tab"
-                    onClick={() => setCategory(value)}
-                  >
-                    {value}
-                  </Button>
-                ))}
-              </div>
-            </fieldset>
-            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-              <p role="status" className="study-label tabular-nums">
-                {preview === "loading"
-                  ? "Loading sample products…"
-                  : `${shownProducts.length} sample products`}
-              </p>
-              <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:min-w-96">
-                <div>
-                  <label
-                    htmlFor="store-filter"
-                    className="study-label mb-1 block"
-                  >
-                    Shop
-                  </label>
-                  <Select value={store} onValueChange={setStore}>
-                    <SelectTrigger id="store-filter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All shops</SelectItem>
-                      {stores.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="sort-order"
-                    className="study-label mb-1 block"
-                  >
-                    Sort
-                  </label>
-                  <Select value={sort} onValueChange={setSort}>
-                    <SelectTrigger id="sort-order">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="featured">Featured</SelectItem>
-                      <SelectItem value="price-asc">
-                        Price: low to high
-                      </SelectItem>
-                      <SelectItem value="price-desc">
-                        Price: high to low
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {preview === "loading" ? (
-            <div className="study-grid" aria-hidden="true">
-              {products.slice(0, 8).map((product) => (
-                <div key={product.id} className="study-card">
-                  <div className="m-2 aspect-square rounded-[var(--game-radius)] bg-[var(--game-slot-bg)]" />
-                  <div className="mx-3 mb-2 h-4 w-2/3 rounded bg-[var(--game-slot-bg)]" />
-                  <div className="mx-3 mb-3 h-4 w-1/3 rounded bg-[var(--game-slot-bg)]" />
-                </div>
-              ))}
-            </div>
-          ) : shownProducts.length > 0 ? (
-            <ul className="study-grid" aria-label="Sample products">
+          {shownProducts.length > 0 ? (
+            <ul
+              className="study-grid"
+              data-tile={settings.tileMode}
+              aria-label="Sample products"
+            >
               {shownProducts.map((product) => (
                 <StudyProductCard
                   key={product.id}
                   product={product}
-                  onAdd={addToDemoCart}
+                  onAdd={collectItem}
+                  showStoreLabel={settings.showStoreLabels}
+                  tileMode={settings.tileMode}
                 />
               ))}
             </ul>
           ) : (
             <section className="study-empty px-4 py-16 text-center">
-              <h2 className="text-xl font-semibold text-balance">
+              <h2
+                className="text-balance"
+                style={{
+                  fontSize: "var(--step-1)",
+                  fontWeight: "var(--weight-semibold)",
+                }}
+              >
                 No products found
               </h2>
-              <p className="my-3 text-sm text-[var(--text-secondary)] text-pretty">
+              <p
+                className="my-3 text-[var(--text-secondary)] text-pretty"
+                style={{ fontSize: "var(--step--1)" }}
+              >
                 Try another search or reset the sample filters.
               </p>
               <Button
@@ -275,47 +241,6 @@ export function StudyPage() {
               </Button>
             </section>
           )}
-          <p role="status" className="mt-4 min-h-5 text-sm">
-            {notice}
-          </p>
-
-          <details className="study-controls mt-6">
-            <summary>Study controls</summary>
-            <div className="study-controls-body flex flex-wrap items-end gap-4">
-              <div className="w-48">
-                <label
-                  htmlFor="preview-state"
-                  className="study-label mb-1 block"
-                >
-                  Preview state
-                </label>
-                <Select value={preview} onValueChange={setPreview}>
-                  <SelectTrigger id="preview-state">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="loaded">Loaded</SelectItem>
-                    <SelectItem value="loading">Loading</SelectItem>
-                    <SelectItem value="empty">Empty</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="study-tab"
-                onClick={resetFilters}
-              >
-                Reset filters
-              </Button>
-              <p className="max-w-md text-xs text-[var(--text-secondary)] text-pretty">
-                Edit this page, the cards, sample products, and study.css in
-                apps/market/design-study/src. All interactions stay in this
-                preview.
-              </p>
-            </div>
-          </details>
-
           <div className="study-rail">
             <span>Market Quest</span>
             <span className="study-rail-sep" aria-hidden="true">
@@ -328,8 +253,39 @@ export function StudyPage() {
             <span>Not a live storefront</span>
           </div>
         </main>
+        {/* Right HUD rail: study controls and status. Pinned on desktop,
+            stacked below the grid on mobile. */}
+        <aside
+          className="study-side study-side-right"
+          aria-label="Found items and study status"
+        >
+          {/* Found-items box lives in the right rail: the inventory reads as
+              part of the game HUD instead of a floating bottom bar. */}
+          <GameHud
+            items={foundItems}
+            onCheckout={() => setCheckoutOpen(true)}
+            onRemove={(product) =>
+              setFoundItems((items) =>
+                items
+                  .map((item) =>
+                    item.product.id === product.id
+                      ? { ...item, count: item.count - 1 }
+                      : item
+                  )
+                  .filter((item) => item.count > 0)
+              )
+            }
+            onClear={() => setFoundItems([])}
+          />
+        </aside>
+        {/* Bottom HUD dock: display toggles (CRT, labels, pixel density,
+            motion) as one pinned strip — the OSRS-style control row. */}
+        <StudyDock settings={settings} onSettings={setSettings} />
       </div>
-      {entry !== null && <StudyPixelField />}
+      {settings.scanlines && (
+        <div className="study-scanlines" aria-hidden="true" />
+      )}
+      <StudyPixelField motion={settings.motion} />
       <StudyEntryScreen
         open={entry !== null}
         panel={entry ?? "title"}
@@ -344,6 +300,75 @@ export function StudyPage() {
         onChooseStore={chooseStore}
         onBrowseAll={browseAll}
       />
+      {/* Centered checkout overlay: same frame language as the entry screen.
+          The market is inert and visually hidden behind it while open. */}
+      {checkoutOpen && (
+        <div
+          className="study-checkout"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Checkout"
+        >
+          <div className="study-checkout-inner">
+            <h1 className="study-checkout-title">Checkout</h1>
+            <p
+              className="study-checkout-note"
+              style={{ fontSize: "var(--step--1)" }}
+            >
+              Design preview — no real payment happens. This is where payment
+              fields (Lightning invoice, NWC, WebLN) will be explored.
+            </p>
+            {foundItems.length === 0 ? (
+              <p
+                className="study-checkout-empty"
+                style={{ fontSize: "var(--step--1)" }}
+              >
+                Nothing collected yet.
+              </p>
+            ) : (
+              <ul
+                className="study-checkout-list"
+                aria-label="Items to check out"
+              >
+                {foundItems.map((item) => (
+                  <li key={item.product.id} className="study-checkout-row">
+                    <FoundItemSlot product={item.product} count={item.count} />
+                    <span className="study-checkout-row-title">
+                      {item.product.title}
+                    </span>
+                    <span className="study-checkout-row-price tabular-nums">
+                      {formatSats(item.product.sats * item.count)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="study-checkout-footer">
+              <span className="study-checkout-total tabular-nums">
+                {formatSats(checkoutTotalSats)}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="study-tab"
+                  onClick={() => setCheckoutOpen(false)}
+                >
+                  Back to market
+                </Button>
+                <Button
+                  type="button"
+                  className="study-tab study-btn-accent"
+                  disabled={foundItems.length === 0}
+                  onClick={() => setCheckoutOpen(false)}
+                >
+                  Pay (pretend)
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

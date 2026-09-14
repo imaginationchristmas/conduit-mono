@@ -51,20 +51,39 @@
   --panel-blur: 2px;
   --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Swiss modular scale — 1.250 major third on a 16px base */
-  --step--1: 0.8rem; /* 12.8px — captions, meta */
-  --step-0: 1rem; /* 16px   — body anchor */
-  --step-1: 1.25rem; /* 20px   — lead, small heading */
-  --step-2: 1.563rem; /* ~25px  — section heading */
-  --step-3: 1.953rem; /* ~31px  — page heading */
-  --step-4: 2.441rem; /* ~39px  — display */
-  --step-5: 3.052rem; /* ~49px  — hero display */
+  /* Swiss modular scale — 1.250 major third on a 16px base.
+     Role map:
+       --step--1  captions, HUD micro-labels, dock labels, store tags
+       --step-0   body, product tile title, price
+       --step-1   section headings (h2 outside tiles), side-panel titles
+       --step-2   brand wordmark (base), section sub-headings
+       --step-3   page headings (h1), discovery entry heading
+       --step-4   entry-screen hero display ("Market Quest")
+       --step-5   reserved / unused at this viewport range */
+  --step--1: 0.8rem; /* 12.8px */
+  --step-0: 1rem; /* 16px   */
+  --step-1: 1.25rem; /* 20px   */
+  --step-2: 1.563rem; /* ~25px  */
+  --step-3: 1.953rem; /* ~31px  */
+  --step-4: 2.441rem; /* ~39px  */
+  --step-5: 3.052rem; /* ~49px  */
+
+  /* Weight tokens — use these instead of raw font-weight values. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
 }
 
 /* EDIT HERE: study-only layout controls. Shared production themes stay untouched. */
 :root {
   --study-content-width: 76rem;
   --study-card-gap: 1rem;
+  /* Left/right HUD rail width on the desktop console. Measured to match the
+     header brand block ("conduit market" lockup + its bevel padding = 283px)
+     so the rails and the logo share one vertical edge, and the reclaimed
+     width goes to the catalogue so tiles read larger. */
+  --study-rail-width: 283px;
   /* Shared brand-lockup size (logo wordmark + "market" label) on the Swiss
      scale; raised one step on wider viewports via the media query below. */
   --study-brand-word: var(--step-2);
@@ -137,6 +156,22 @@
   --game-bevel-light: color-mix(in srgb, white 70%, transparent);
   --game-bevel-dark: color-mix(in srgb, #8b835b 34%, transparent);
 
+  /* Remap the production primary scale (#BB00FF family) to the Oshi purple
+     anchor so shared primitives — focus rings, default-variant buttons,
+     combobox search rings — all resolve to the palette purple. */
+  --primary-h: 283;
+  --primary-s: 25%;
+
+  /* Shared-primitive surfaces: triggers, portaled dropdown panels, dialogs,
+     and hover fills resolve to the game surfaces so floating menus match the
+     console. */
+  --card: var(--game-surface);
+  --surface: var(--game-surface);
+  --surface-dialog: var(--game-surface-2);
+  --surface-overlay: var(--game-surface-2);
+  --surface-elevated: var(--game-surface-2);
+  --popover: var(--game-surface-2);
+
   /* Day field: hazy Olive paper ground with darker Olive cells so the grid
      stays quiet behind the title card. */
   --field-ground: color-mix(in srgb, #8b835b 12%, white);
@@ -158,6 +193,22 @@
   --game-select: #f15a30; /* Orange */
   --game-bevel-light: color-mix(in srgb, white 12%, transparent);
   --game-bevel-dark: color-mix(in srgb, black 55%, transparent);
+
+  /* Remap the production primary scale (#BB00FF family) to the Oshi purple
+     anchor so shared primitives — focus rings, default-variant buttons,
+     combobox search rings — all resolve to the palette purple. */
+  --primary-h: 283;
+  --primary-s: 25%;
+
+  /* Shared-primitive surfaces: triggers, portaled dropdown panels, dialogs,
+     and hover fills resolve to the game surfaces so floating menus match the
+     console. */
+  --card: var(--game-surface);
+  --surface: var(--game-surface);
+  --surface-dialog: var(--game-surface-2);
+  --surface-overlay: var(--game-surface-2);
+  --surface-elevated: var(--game-surface-2);
+  --popover: var(--game-surface-2);
 
   /* Night field: deep Olive ground with dim Olive cells; the accent trio
      carries the pop when the pointer displaces them. */
@@ -194,6 +245,37 @@ summary {
 
 .study-page {
   min-height: 100dvh;
+}
+
+/* Phase 2.8 HUD shell: the market wrapper paints above the always-on pixel
+   field (z-index 0) while staying transparent, so the field shows between
+   the framed surfaces. While the entry flow is open, the market HUD is
+   hidden entirely — the start screen shows only the field behind it. */
+.study-market {
+  position: relative;
+  z-index: 1;
+}
+.study-page[data-entry-open] .study-market {
+  visibility: hidden;
+}
+/* Clear the fixed HUD strip (header boxes) and the fixed notice chip. With the
+   header search gone the strip is a single compact row, so the catalogue can
+   start higher. The rails need the same clearance: on mobile they start at the
+   top of the document, under the fixed header. */
+.study-page main.study-shell {
+  padding-top: 7rem;
+  padding-bottom: 5.5rem;
+}
+.study-side {
+  padding-top: 7rem;
+}
+@media (min-width: 48rem) {
+  .study-page main.study-shell {
+    padding-top: 5.5rem;
+  }
+  .study-side {
+    padding-top: 5.5rem;
+  }
 }
 
 /* Study theme toggle: three-state segmented control with a sliding pill
@@ -288,39 +370,98 @@ summary {
   --tw-ring-color: var(--oshi-purple);
 }
 
-/* Swiss hierarchy: page heading sits at step-3, weight 500 (max available) */
+/* Portaled dropdown panels (Select and Combobox popovers) mount at body
+   level, outside .study-page, so they need their own game framing. Their
+   colors come from the surface-token overrides in the theme blocks. */
+[data-radix-popper-content-wrapper] > * {
+  border-radius: var(--game-radius) !important;
+  border: var(--game-border) solid var(--game-panel-border) !important;
+  box-shadow: 0 10px 30px color-mix(in srgb, black 40%, transparent);
+}
+
+/* The command search inside a combobox panel draws its focus ring outside
+   the panel edge. Replace it with an inset underline so the highlight stays
+   inside the framed panel. */
+[data-radix-popper-content-wrapper] [cmdk-input-wrapper] {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border-bottom: var(--game-border) solid var(--game-panel-border) !important;
+  background: transparent !important;
+}
+[data-radix-popper-content-wrapper] [cmdk-input-wrapper]:focus-within {
+  box-shadow: none !important;
+  border-bottom-color: var(--game-accent) !important;
+}
+[data-radix-popper-content-wrapper] [cmdk-input] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+[data-radix-popper-content-wrapper] [cmdk-input]:focus-visible {
+  outline: none !important;
+  --tw-ring-color: transparent !important;
+}
+
+/* Swiss hierarchy: page heading sits at step-3, weight medium */
 .study-page h1 {
   font-size: var(--step-3);
-  line-height: 1.25; /* multiple of the 8px baseline */
-  font-weight: 500;
+  line-height: 1.25; /* 40px — 5× baseline */
+  font-weight: var(--weight-medium);
   letter-spacing: -0.025em;
   text-align: left;
 }
 
-/* Section-level labels: step-1, weight 500 */
+/* Section-level labels: step-1, weight medium.
+   Does NOT apply inside product tiles — .study-card-title overrides below. */
 .study-page h2 {
   font-size: var(--step-1);
-  line-height: 1.5; /* 24px baseline multiple */
-  font-weight: 500;
+  line-height: 1.5; /* 24px — 3× baseline */
+  font-weight: var(--weight-medium);
   text-align: left;
 }
 .study-shell {
   width: min(100% - 2rem, var(--study-content-width));
   margin-inline: auto;
 }
-/* Sticky header: stays fixed as the user scrolls; solid background so
-   content passes underneath without showing through. */
+/* Phase 2.8 HUD header: a fixed, transparent strip pinned to the top of the
+   viewport. Brand and controls sit in isolated bevel boxes that float over the
+   pixel field. The strip ignores pointers so clicks between the boxes reach the
+   field (ripple); each box opts back in. */
 .study-header-bar {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0 0 auto 0;
   z-index: 50;
+  background: none;
+  border-bottom: 0;
+  pointer-events: none;
+  padding: 0.75rem 1rem;
 }
 .study-header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding-block: 1rem;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-block: 0;
+}
+.study-header-bar .study-header > a,
+.study-header-bar .study-status-controls {
+  pointer-events: auto;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-lg);
+  background: var(--game-surface);
+  padding: 0.5rem 0.75rem;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-header-bar .study-header > a {
+  margin-right: auto;
+}
+.study-header-bar .study-status-controls {
+  padding: 0.375rem 0.5rem;
 }
 /* Brand lockup: the logo's "conduit" wordmark and the adjacent "market" label
    are matched to the same visual cap/x-height and both sit on the Swiss scale.
@@ -334,11 +475,7 @@ summary {
 .study-brand-word {
   font-size: var(--study-brand-word);
   line-height: 1;
-  font-weight: var(--font-medium);
-}
-.study-search {
-  grid-column: 1 / -1;
-  grid-row: 2;
+  font-weight: var(--weight-medium);
 }
 .study-grid {
   display: grid;
@@ -373,6 +510,46 @@ summary {
   padding: 0.5rem 0.5rem 0;
   text-align: left;
 }
+/* Outlined block treatment (Swiss wireframe): text sits inside hairline
+   rounded bars with no fill, matching the outlined shapes in the mockup.
+   Blocks use a 1px hairline so they read lighter than the 2px card frame. */
+.study-block {
+  display: block;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--game-ink);
+  border-radius: var(--game-radius-lg);
+  background: transparent;
+}
+/* Product tile title: step-0 (16px body size) wins over the generic h2
+   rule above via the extra .study-card class in the selector. Uppercase
+   narrow treatment keeps the retro HUD read at a body-scale size. */
+.study-card .study-card-title {
+  margin-top: 0.5rem;
+  font-size: var(--step-0);
+  font-weight: var(--weight-semibold);
+  line-height: 1.25; /* 24px — 3× baseline */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  text-align: left;
+}
+.study-card-blocks {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+}
+.study-card-blocks .study-label.study-block {
+  color: var(--text-secondary);
+}
+.study-block-price {
+  display: flex;
+  align-items: center;
+  font-size: var(--step-0);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
 .study-product-link:focus-visible {
   outline-offset: -3px;
 }
@@ -404,6 +581,27 @@ summary {
 .study-artwork[data-artwork="print"],
 .study-artwork[data-artwork="notebook"] {
   color: var(--game-accent-2);
+}
+/* "Picture" tile mode: a denser photo wall that shows cover art only, so the
+   grid can pack more tiles per row and the artwork reads like a contact sheet. */
+.study-grid[data-tile="picture"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.study-card[data-tile="picture"] .study-product-link {
+  padding: 0.35rem 0.35rem 0.35rem;
+}
+/* Cover-only slots drop the artwork caption's gap so the art can breathe. */
+.study-artwork[data-cover-only="true"] {
+  gap: 0;
+}
+/* Info tiles adopt the same outlined wireframe as their text blocks: the
+   artwork becomes a hairline frame with no fill, so image + text read as one
+   block language. Picture mode keeps the filled slot for the photo wall. */
+.study-card[data-tile="info"] .study-artwork {
+  border-color: var(--game-ink);
+  background: transparent;
+  box-shadow: none;
 }
 .study-skip-link {
   position: absolute;
@@ -629,29 +827,34 @@ body:has(.study-entry[data-open="true"]) {
 /* ---------------------------------------------------------------------------
  * Phase 2 — market surface: paper frame, status bar, panels, tabs, footer.
  * ------------------------------------------------------------------------- */
-.study-frame {
-  border-top: var(--game-border) solid var(--game-panel-border);
-  background: var(--game-surface);
-}
-
 /* Uppercase micro-labels for the retro HUD feel. */
 .study-label {
   font-size: var(--step--1);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-secondary);
 }
 
+/* The "Design study" notice floats as a bottom-center HUD chip.
+   pointer-events: none so it never blocks the dock or other interactive
+   controls it overlaps on small viewports. */
 .study-notice {
-  border-bottom: var(--game-border) solid var(--game-panel-border);
+  position: fixed;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  max-width: min(100% - 2rem, 40rem);
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-lg);
   background: var(--game-surface);
   color: var(--text-secondary);
-}
-
-.study-header-bar {
-  border-bottom: var(--game-border) solid var(--game-panel-border);
-  background: var(--game-surface);
+  padding: 0.375rem 0.875rem;
+  pointer-events: none;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
 }
 
 /* Zelda-style status bar directly under the header: slate, theme control, and
@@ -678,7 +881,7 @@ body:has(.study-entry[data-open="true"]) {
   align-items: center;
   gap: 0.5rem;
   font-size: var(--step-1);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.02em;
 }
 .study-section-desc {
@@ -708,6 +911,16 @@ body:has(.study-entry[data-open="true"]) {
   height: auto;
   padding: 0.4rem 0.75rem;
 }
+/* Accent-fill action button (checkout / pay): Oshi purple instead of the
+   production primary (#BB00FF family) that Button's default variant uses. */
+.study-btn-accent {
+  border-color: color-mix(in srgb, black 30%, var(--game-accent)) !important;
+  background: var(--game-accent) !important;
+  color: #fdfbff !important;
+}
+.study-btn-accent:hover:not(:disabled) {
+  background: color-mix(in srgb, black 12%, var(--game-accent)) !important;
+}
 .study-tab[aria-pressed="true"] {
   border-color: var(--game-select) !important;
   background: color-mix(in srgb, var(--game-select) 20%, var(--game-surface));
@@ -730,7 +943,7 @@ body:has(.study-entry[data-open="true"]) {
 .study-controls > summary {
   list-style: none;
   padding: 0.75rem 1rem;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: var(--step--1);
@@ -789,7 +1002,7 @@ body:has(.study-entry[data-open="true"]) {
   background: var(--game-surface);
 }
 .study-entry .study-start-title {
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.1em;
   color: var(--game-ink);
   text-shadow:
@@ -820,39 +1033,595 @@ body:has(.study-entry[data-open="true"]) {
   :root {
     --study-brand-word: var(--step-3);
   }
+  /* On the desktop console the header strip shares the grid's 2rem side
+     padding, so the brand box, rails, and dock all share one flush left/right
+     edge. The padding inside the brand/cart boxes is unchanged. */
+  @media (min-width: 80rem) {
+    .study-header-bar {
+      padding-inline: 2rem;
+    }
+  }
   .study-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  /* Photo wall packs wider than the info grid at every breakpoint. */
+  .study-grid[data-tile="picture"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* Header as a 2-column grid: brand left, controls right. Product search
+     lives in the left HUD rail, so the header stays a quiet brand strip. */
   .study-header {
-    grid-template-columns: auto minmax(12rem, 32rem) 1fr;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
-  .study-search {
-    grid-column: auto;
-    grid-row: auto;
+  .study-header-bar .study-header > a {
+    margin-right: 0;
+    justify-self: start;
+  }
+  .study-header-bar .study-status-controls {
+    grid-column: 2;
+    justify-self: end;
   }
 }
 @media (min-width: 64rem) {
   .study-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .study-grid[data-tile="picture"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
 /* ---------------------------------------------------------------------------
  * Cursor pixel displacement field (Phase 2.7)
  *
- * A fixed canvas of chunky pixels painted behind the entry overlay — the
- * only backdrop. StudyPixelField draws the grid and displaces cells toward
- * the pointer; colours come from the --field-* tokens (Oshi anchors, themed
- * per day/night). pointer-events none so it never blocks the UI.
+ * The always-on backdrop: a fixed canvas of chunky pixels behind every
+ * surface. StudyPixelField draws the grid and displaces cells toward the
+ * pointer; colours come from the --field-* tokens (Oshi anchors, themed
+ * per day/night). pointer-events none so it never blocks the UI; the market
+ * wrapper (z-index 1) and the entry overlay (70) paint above it.
  * ------------------------------------------------------------------------- */
 .study-pixel-field {
   position: fixed;
   inset: 0;
-  /* Below the entry panel (70). */
-  z-index: 69;
+  /* Behind all study UI; the entry overlay (70) covers it when open. */
+  z-index: 0;
   pointer-events: none;
   display: block;
   width: 100vw;
   height: 100vh;
   background: var(--field-ground);
+}
+
+/* ---------------------------------------------------------------------------
+ * HUD side rails (Phase 3 revision)
+ *
+ * The market becomes a console screen: pinned left and right rails frame the
+ * catalogue, and only the centre column scrolls. The left rail holds the
+ * filters and the study settings as always-visible buttons; the right rail
+ * holds the study controls and status. Below 80rem the rails stack inline
+ * with the flow instead of pinning.
+ * ------------------------------------------------------------------------- */
+.study-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+/* On the console the rail is sized by the grid track, so drop the stacked
+   max-width and let it fill the brand-width column exactly. */
+@media (min-width: 80rem) {
+  .study-side {
+    max-width: none;
+  }
+}
+/* Each rail box is a foldable disclosure: the summary row is the panel title
+   with a chevron that flips when the panel collapses. */
+.study-side-box {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-side-box > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+}
+.study-side-box > summary::-webkit-details-marker {
+  display: none;
+}
+.study-side-box[open] > summary {
+  border-bottom: var(--game-border) solid var(--game-panel-border);
+}
+.study-side-title {
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--step--1);
+}
+.study-side-chevron {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 160ms ease;
+}
+.study-side-box[open] .study-side-chevron {
+  transform: rotate(180deg);
+}
+.study-side-body {
+  padding: 1.25rem;
+}
+/* Below 80rem the fixed header strip and notice chip overlay the top of the
+   page, so scroll-into-view needs clearance or rail/dock controls land
+   underneath them. */
+.study-side-box,
+.study-dock,
+:is(.study-side-box, .study-dock)
+  :is(button, [role="switch"], select, input, summary) {
+  scroll-margin-top: 10rem;
+}
+.study-side-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+/* "Find an item" combobox (search-in-trigger mode): the shared Input inside
+   the trigger brings its own border + focus ring, which doubled with the
+   trigger wrapper's focus-within ring. Strip the inner chrome so the user
+   sees exactly one highlight. */
+.study-find-trigger input {
+  border: 0;
+  background: transparent;
+  height: 100%;
+  box-shadow: none;
+}
+.study-find-trigger input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+/* Rail and dock controls adopt the product-card block language: hairline
+   outlined bars with no fill (the .study-block treatment on the tiles), so
+   the nav panels read as the same design system as the listings. */
+.study-side [role="combobox"],
+.study-dock [role="combobox"] {
+  height: auto;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--game-ink) !important;
+  border-radius: var(--game-radius-lg) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: var(--step--1);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-ink);
+}
+.study-side [role="combobox"]:hover,
+.study-dock [role="combobox"]:hover {
+  background: var(--game-surface) !important;
+  border-color: var(--game-select) !important;
+}
+.study-side [role="combobox"] > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.study-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.study-settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.study-side [role="switch"] {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface);
+}
+.study-side [role="switch"][data-state="checked"] {
+  border-color: color-mix(in srgb, black 30%, var(--game-accent));
+  background: var(--game-accent);
+}
+
+/* Bottom HUD dock (OSRS-style toggle strip): one framed row of display
+   switches and segmented buttons. Inline with the flow below 80rem; pinned
+   as the bottom grid row on the desktop console. */
+.study-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  padding: 0.875rem 1.25rem;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-dock-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.study-dock-label {
+  font-size: var(--step--1);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.study-dock [role="switch"] {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface);
+}
+/* Below 80rem the dock flows at the document bottom, under the fixed
+   bottom-centre notice chip — keep it clear of the chip. */
+@media (max-width: 79.99rem) {
+  .study-dock {
+    margin-bottom: 4rem;
+  }
+}
+.study-dock [role="switch"][data-state="checked"] {
+  border-color: color-mix(in srgb, black 30%, var(--game-accent));
+  background: var(--game-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Found-items HUD (Phase 4)
+ *
+ * The found-items box lives in the right HUD rail, above the status box: a
+ * framed panel of square collectible slots with a total count that pops on
+ * change, plus a bottom Sheet review panel with a themed no-op checkout.
+ * ------------------------------------------------------------------------- */
+.study-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.625rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.875rem 1rem;
+  overflow: hidden;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+/* The HUD flows inside the right rail (desktop) or stacks with the rail boxes
+   (mobile), so no extra bottom clearance is needed beyond the rail's own. */
+.study-hud-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.study-hud-slots-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+/* Keep the Clear/Review cluster inside the panel border. */
+.study-hud-top > div:last-child {
+  min-width: 0;
+  max-width: 100%;
+}
+.study-hud-top .study-tab {
+  max-width: 100%;
+}
+.study-hud-count {
+  min-width: 2ch;
+  font-size: var(--step-1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+}
+/* Count pop: a quick scale bump each time the total changes. */
+.study-hud-count[data-pop="true"] {
+  animation: study-hud-pop 300ms ease-out;
+}
+@keyframes study-hud-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.45);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-hud-count[data-pop="true"] {
+    animation: none;
+  }
+}
+.study-hud-slots {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+}
+.study-hud-empty {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+/* Square collectible slot — same bevel language as the product tiles. */
+.study-found-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-sm, 2px);
+  background: var(--game-surface);
+  color: var(--game-accent);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-found-count {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--game-panel-border);
+  border-radius: 2px;
+  background: var(--game-accent);
+  color: var(--game-surface);
+  font-size: var(--step--1);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+/* Inline review list (expanded in the rail, no overlay). */
+.study-hud-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-block: 0.25rem 0.5rem;
+  padding-block: 0.25rem;
+  min-width: 0;
+  /* The list scrolls inside the panel so the total + pay button stay visible
+     no matter how many items are collected. */
+  max-height: 40dvh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.study-hud-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.study-hud-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.study-hud-row-title {
+  flex: 1;
+  min-width: 0;
+  /* One line, truncated with an ellipsis — long titles cannot wrap the row. */
+  font-size: var(--step--1);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.study-hud-row-price {
+  flex-shrink: 0;
+  font-size: var(--step--1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.study-hud-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--game-panel-border);
+  min-width: 0;
+}
+.study-hud-total {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.study-hud-total {
+  font-size: var(--step-1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Centered checkout overlay (Phase 4, revised)
+ *
+ * Same frame language as the entry screen: a fixed full-viewport scrim with a
+ * centered framed panel. The market behind it is inert and the product grid is
+ * hidden so the payment fields read clearly.
+ * ------------------------------------------------------------------------- */
+.study-checkout {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, black 55%, transparent);
+}
+.study-checkout-inner {
+  width: min(100%, 34rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-lg);
+  background: var(--game-surface);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-checkout-title {
+  margin: 0;
+  font-size: var(--step-3);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+.study-checkout-note {
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+.study-checkout-empty {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+}
+.study-checkout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-block: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+}
+.study-checkout-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.study-checkout-row-title {
+  flex: 1;
+  font-size: var(--step-0);
+  color: var(--text-primary);
+}
+.study-checkout-row-price {
+  font-size: var(--step--1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.study-checkout-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--game-panel-border);
+}
+.study-checkout-total {
+  font-size: var(--step-1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+/* While checkout is open, the product grid steps aside so the payment fields
+   are the only thing to read. */
+.study-market[data-checkout-open="true"] .study-grid {
+  visibility: hidden;
+}
+
+/* Desktop console layout: header strip on top, two pinned rails, the dock as
+   the bottom row, and the centre column (catalogue) scrolling inside the
+   viewport. */
+@media (min-width: 80rem) {
+  .study-market {
+    display: grid;
+    /* Rails match the header brand block, so the brand, the filters, and the
+       status column all start on the same vertical edge; the reclaimed width
+       goes to the centre catalogue so tiles read larger. */
+    grid-template-columns:
+      var(--study-rail-width) minmax(0, 1fr)
+      var(--study-rail-width);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "left main right"
+      "dock dock dock";
+    gap: 1.25rem 2rem;
+    /* Full viewport minus the fixed header strip and notice chip; the
+       header strip stays pinned to the very top of the window. Top padding
+       clears the brand strip with the same air as before, so the catalogue
+       reads as a separate plane rather than crowding the header. */
+    height: 100dvh;
+    padding: 6.5rem 2rem 1rem;
+    box-sizing: border-box;
+  }
+  .study-side {
+    grid-area: left;
+    align-self: start;
+    max-height: 100%;
+    overflow-y: auto;
+    margin-inline: 0;
+    padding-top: 0;
+  }
+  .study-side-right {
+    grid-area: right;
+  }
+  .study-market main.study-shell {
+    grid-area: main;
+    /* The catalogue is the only scrolling region. */
+    overflow-y: auto;
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    scrollbar-width: thin;
+  }
+  .study-dock {
+    grid-area: dock;
+    align-self: end;
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * CRT scanlines overlay (Phase 3, settings toggle)
+ *
+ * A fixed cosmetic layer above the market (z-index 65, below the entry
+ * overlay at 70). pointer-events none so it never blocks clicks; the ripple
+ * listener ignores it because it is never the pointer target anyway.
+ * ------------------------------------------------------------------------- */
+.study-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    color-mix(in srgb, black 12%, transparent) 2px 4px
+  );
 }

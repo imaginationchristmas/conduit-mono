@@ -29,13 +29,22 @@ Working branch: `feat/market-home-design-study-tangent`.
 3. **Settings are user-controlled and multi-toggle**, behind a persistent,
    visible settings control (a marked header button that opens a panel). No
    hidden gestures. Initial toggle set (adjust during Phase 3):
-   - CRT / scanline overlay on or off
-   - Grid density: comfortable or compact
+   - CRT / scanline overlay on or off (re-add a CSS-only scanline layer — the
+     Phase 2.6 backdrop that carried it was removed)
+   - Pixel-field density: comfortable or compact (the MarketQuest backdrop's
+     cell spacing, **not** the product tile grid)
    - Motion level: full or reduced, layered on top of `prefers-reduced-motion`
    - Store labels on product tiles on or off
      Settings persist in `localStorage` on the study origin only.
 4. **Phase 1 first** (game shell plus start screen), then stop and review before
    Phase 2. Build little by little.
+5. **Contained "console screen" shell.** The browsing surface is a bounded,
+   centered panel floating over the pixel field — the same presentation as the
+   entry/discovery panel — **not** a full-bleed page. The field must stay
+   visible around/behind the screen at every step. The header, filter panel,
+   product grid, found-items HUD, and future cart/filter surfaces all live
+   _inside_ this screen. `Sheet`/`Popover` overlays may still escape it for
+   focus trapping. This replaces the current full-width `.study-frame` layout.
 
 ## Non-negotiable constraints (from repo + study rules)
 
@@ -85,40 +94,48 @@ stateDiagram-v2
 
 ## Component inventory (all study-local)
 
-| File                   | Role                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `StudyPage.tsx`        | Screen orchestration + shared state (collected items, filters, toggles, query) |
-| `StartScreen.tsx`      | Title/attract screen and start prompt                                          |
-| `SettingsPanel.tsx`    | Multi-toggle settings, opened from a header control                            |
-| `FilterPanel.tsx`      | Folding filter section using the existing filters                              |
-| `GameHud.tsx`          | Sticky bottom found-items bar, count, expand control                           |
-| `FoundItemSlot.tsx`    | Square collectible slot with glyph and stack count                             |
-| `StudyProductCard.tsx` | Retro square tile, bevel frame, collect action                                 |
-| `ProductArtwork.tsx`   | CSS-only retro placeholder artwork                                             |
-| `fixtures.ts`          | Optional collectible metadata such as rarity and glyph                         |
-| `study.css`            | Game skin tokens, bevels, CSS textures, motion tokens, Oshi palette            |
-| `ui.ts`                | Bridge only; add a shared primitive only if a matching one exists              |
+Status: **exists** = already shipped in the study; **planned** = not created yet.
+
+| File                   | Status  | Role                                                                  |
+| ---------------------- | ------- | --------------------------------------------------------------------- |
+| `StudyPage.tsx`        | exists  | Screen orchestration + shared state (filters, query, demo cart count) |
+| `StudyEntryScreen.tsx` | exists  | Title + discovery entry overlay, once-per-session gate                |
+| `StudyPixelField.tsx`  | exists  | MarketQuest living pixel-field backdrop (canvas)                      |
+| `StudyHeader.tsx`      | exists  | Sticky header: brand, search, theme toggle, item control              |
+| `StudyThemeToggle.tsx` | exists  | Three-state theme control (icon-swap recipe)                          |
+| `StudyProductCard.tsx` | exists  | Retro square tile, bevel frame, collect action                        |
+| `ProductArtwork.tsx`   | exists  | CSS-only retro placeholder artwork                                    |
+| `fixtures.ts`          | exists  | Sample products/categories/stores (+ optional collectible metadata)   |
+| `study.css`            | exists  | Game skin tokens, bevels, CSS textures, motion tokens, Oshi palette   |
+| `ui.ts`                | exists  | Bridge only; add a shared primitive only if a matching one exists     |
+| `SettingsPanel.tsx`    | planned | Multi-toggle settings, opened from a header control                   |
+| `FilterPanel.tsx`      | planned | Folding filter section using the existing filters                     |
+| `GameHud.tsx`          | planned | Sticky bottom found-items bar, count, expand control                  |
+| `FoundItemSlot.tsx`    | planned | Square collectible slot with glyph and stack count                    |
+
+`StartScreen.tsx` was renamed to `StudyEntryScreen.tsx` when the two-panel
+title/discovery entry flow landed.
 
 ## Motion map (transitions-dev recipes)
 
-| Moment                              | Recipe                                                          |
-| ----------------------------------- | --------------------------------------------------------------- |
-| Title to Market reveal              | 07 panel reveal or 08 page side by side                         |
-| Cursor pixel displacement field     | Canvas 2D per-cell loop, pointer-driven, reduced-motion guarded |
-| Blinking start prompt and scanlines | CSS loops, reduced-motion guarded                               |
-| Item collected                      | 03 notification badge plus 02 number pop in                     |
-| HUD box expand                      | 07 panel reveal or 20 plus to menu morph                        |
-| Settings open                       | 05 menu dropdown or 06 modal                                    |
-| Filter fold                         | 21 accordion expand                                             |
-| Segmented filters                   | 16 tabs sliding                                                 |
-| Feature on/off                      | 27 toggle                                                       |
-| Option select                       | 25 checkbox check                                               |
-| Tile hover                          | 19 card hover tilt, desktop only, gated                         |
-| Loading grid                        | 14 skeleton reveal plus 31 matrix loader                        |
-| Empty state                         | 18 texts reveal                                                 |
-| Checkout dialog                     | 06 modal                                                        |
-| Item toast                          | 22 toast                                                        |
-| Search clear                        | 13 input clear dissolve                                         |
+| Moment                  | Recipe                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Title to Market reveal  | 07 panel reveal or 08 page side by side                                                                |
+| MarketQuest pixel field | Canvas 2D per-cell loop: ambient drift, velocity comet, click ripple, sparkles; reduced-motion guarded |
+| Blinking start prompt   | CSS loops, reduced-motion guarded                                                                      |
+| Item collected          | 03 notification badge plus 02 number pop in                                                            |
+| HUD box expand          | 07 panel reveal or 20 plus to menu morph                                                               |
+| Settings open           | 05 menu dropdown or 06 modal                                                                           |
+| Filter fold             | 21 accordion expand                                                                                    |
+| Segmented filters       | 16 tabs sliding                                                                                        |
+| Feature on/off          | 27 toggle                                                                                              |
+| Option select           | 25 checkbox check                                                                                      |
+| Tile hover              | 19 card hover tilt, desktop only, gated                                                                |
+| Loading grid            | 14 skeleton reveal plus 31 matrix loader                                                               |
+| Empty state             | 18 texts reveal                                                                                        |
+| Checkout dialog         | 06 modal                                                                                               |
+| Item toast              | 22 toast                                                                                               |
+| Search clear            | 13 input clear dissolve                                                                                |
 
 Adopt the shared motion tokens from `.agents/skills/transitions-dev/_root.css`.
 Tune to the token scale with the `transitions-polish` skill during Phase 5.
@@ -237,7 +254,7 @@ discovery panel), and the button click animation is unchanged.
 
 **Status: done.** `StudyPixelField.tsx` is the sole entry backdrop: a canvas-2D
 field of chunky pixels over a themed ground, tuned to feel alive for
-**MarketQuest** rather than a static wallpaper. Three systems run per frame:
+**MarketQuest** rather than a static wallpaper. Four systems run per frame:
 
 - **Ambient drift** — every cell breathes on a slow travelling wave, so the
   whole field gently undulates even with no pointer. This is the always-on
@@ -259,20 +276,47 @@ field of chunky pixels over a themed ground, tuned to feel alive for
   scale up, glow, and die, like loot glinting. They spawn on a timer and in the
   pointer's wake.
 
-The grid is dense (CELL 20px, GAP 1.5px) and each cell blends its accent with a
-neighbour's on a slow phase, so colour shifts flow as a coherent wave across the
-field rather than a sparse checkerboard.
+The grid is **dense** (CELL 20px, GAP 1.5px) and each cell blends its accent
+with a neighbour's on a slow phase, so colour shifts flow as a coherent wave
+across the field rather than a sparse checkerboard. The cell spacing is what the
+Phase 3 "pixel-field density" toggle adjusts.
 
 Canvas 2D (not WebGL) is deliberate — the chunky per-cell loop is the look and
 needs no shaders or textures. Colours are read live from the `--field-*` custom
 properties (`--field-ground`, `--field-base`, `--field-accent-1/2/3`) so the
 field follows the active theme without a restart, and a `MutationObserver` on
-`data-theme` re-reads them on flip. The grid is coarse and the rAF only runs
-while something is moving (pointer active, cells easing, or a sparkle alive),
-so idle cost is zero. Under `prefers-reduced-motion: reduce` the field renders
-once as a static grid and never listens for the pointer. The canvas is
-`pointer-events: none` at `z-index: 69` — below the entry panel (70) — and
-paints its own themed `--field-ground` so it stands alone.
+`data-theme` re-reads them on flip. Under `prefers-reduced-motion: reduce` the
+field renders once as a static grid and never listens for the pointer; the
+canvas is `pointer-events: none` at `z-index: 69` — below the entry panel (70)
+— and paints its own themed `--field-ground` so it stands alone.
+
+**Motion budget (corrected).** The field is _not_ idle when untouched: ambient
+sparkles spawn on a timer (every `SPARKLE_EVERY`, 240ms) and `kick()` runs on
+mount, so the rAF stays alive and the ambient drift animates continuously while
+motion is allowed. Idle cost is only truly zero under `prefers-reduced-motion:
+reduce`, where the field paints once and never starts the loop.
+
+### Phase 2.8 — Contained console-screen shell
+
+Reframe the market surface as a bounded panel over the field (locked decision 5) **before** Phase 3 builds new panels into it, so later controls inherit the
+contained frame instead of being retrofitted.
+
+- Wrap the header + main in a `.study-screen` frame: centered, `position:
+fixed` (or a grid-centered wrapper), `width: min(100% - 2rem, 76rem)`,
+  `max-height: calc(100dvh - 2rem)`, square bevel border, `--game-surface`
+  background, rounded `--game-radius-lg`. Give the product grid its own inner
+  scroll region so the screen keeps a fixed height instead of growing the page.
+- Drop the edge-to-edge backgrounds on `.study-frame` / `.study-header-bar` /
+  `.study-notice`; the notice becomes a slim banner pinned to the screen's top
+  edge, and the header sticks _within_ the inner scroll container, not the
+  viewport.
+- Mobile 375px: the screen fills the viewport minus a small margin, scrolls
+  internally, and must not introduce horizontal overflow (keep the
+  `scrollWidth <= innerWidth` assertion).
+- Reserve interior regions for Phase 3 (a top status strip) and Phase 4 (a
+  bottom item-box HUD) so those land as an in-screen game frame rather than
+  page chrome.
+- Update `tests/study.playwright.ts` and screenshots for the new structure.
 
 ### Phase 3 — Filter and settings panel
 
@@ -308,9 +352,14 @@ paints its own themed `--field-ground` so it stands alone.
   `Study controls`, preview states). Update the tests each slice touches.
 - **CSP and assets.** No pixel fonts or remote art; the retro look must be CSS
   geometry only. Hard boundary, not a preference.
-- **Mobile 375px.** Tests assert `scrollWidth <= innerWidth`. The sticky header
-  plus sticky bottom HUD must not overflow; the HUD needs safe-area insets and
-  can sit over mobile browser chrome.
+- **Mobile 375px.** Tests assert `scrollWidth <= innerWidth`. Inside the
+  contained screen (Phase 2.8) the header sticks to the inner scroll container
+  and the bottom item-box HUD sits at the screen's lower edge; neither may
+  overflow. The HUD needs safe-area insets.
+- **Containment vs. overlays.** Phase 2.8 bounds the market surface, but
+  `Sheet`/`Popover`/`Dialog` overlays must still portal above the screen with
+  correct focus trapping and `z-index` ordering (screen below the field-adjacent
+  overlays, entry overlay on top).
 - **Accessibility gating.** The title overlay must not trap or hide focusable
   market content from assistive tech; use `inert`/`aria-hidden` correctly.
 - **Theme parity.** The retro treatment must read well in Day and Night Market.

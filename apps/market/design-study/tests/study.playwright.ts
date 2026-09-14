@@ -114,7 +114,7 @@ test("Press Start opens discovery, Skip intro goes straight to the market", asyn
   await page.getByRole("button", { name: /Paper & Ink/ }).click()
   await expect(entry).toHaveAttribute("data-open", "false")
   await expect(
-    page.getByRole("heading", { name: "Products", exact: true })
+    page.getByRole("list", { name: "Sample products" })
   ).toBeVisible()
   await expect(page.getByText("3 sample products")).toBeVisible()
   await expect(page.getByRole("combobox", { name: "Shop" })).toContainText(
@@ -148,7 +148,7 @@ test("sample catalog and screenshot fit the viewport", async ({
 }, testInfo) => {
   await enterMarket(page)
   await expect(
-    page.getByRole("heading", { name: "Products", exact: true })
+    page.getByRole("list", { name: "Sample products" })
   ).toBeVisible()
   await expect(page.locator("[data-product-id]")).toHaveCount(12)
   await expect(
@@ -170,23 +170,18 @@ test("sample catalog and screenshot fit the viewport", async ({
   })
 })
 
-test("search, category, shop, sort, and empty recovery use fixtures", async ({
+test("category, shop, sort, find-item, and empty recovery use fixtures", async ({
   page,
 }) => {
   await enterMarket(page)
-  await page
-    .getByRole("searchbox", { name: "Search sample products" })
-    .fill("coffee-does-not-exist")
-  await expect(
-    page.getByRole("heading", { name: "No products found" })
-  ).toBeVisible()
-  await page
-    .getByRole("button", { name: "Reset filters", exact: true })
-    .first()
-    .click()
-  await page.getByRole("button", { name: "Clothing", exact: true }).click()
+  // Category, Shop, Sort, Find an item, and Reset all live in the left HUD
+  // rail; the header is brand-only now.
+  // Category is a dropdown now; pick Clothing, then back to all.
+  await page.getByRole("combobox", { name: "Category" }).click()
+  await page.getByRole("option", { name: "Clothing", exact: true }).click()
   await expect(page.locator("[data-product-id]")).toHaveCount(3)
-  await page.getByRole("button", { name: "All products", exact: true }).click()
+  await page.getByRole("combobox", { name: "Category" }).click()
+  await page.getByRole("option", { name: "All products", exact: true }).click()
   await page.getByRole("combobox", { name: "Shop", exact: true }).click()
   await page.getByRole("option", { name: "Early Bird", exact: true }).click()
   await expect(page.locator("[data-product-id]")).toHaveCount(2)
@@ -198,55 +193,112 @@ test("search, category, shop, sort, and empty recovery use fixtures", async ({
     "data-product-id",
     "tea"
   )
-  await page.getByRole("searchbox").fill("blend")
+
+  // An impossible category + shop pair lands on the empty state, which Reset
+  // filters recovers from.
+  await page.getByRole("combobox", { name: "Category" }).click()
+  await page.getByRole("option", { name: "Food & drink", exact: true }).click()
+  await page.getByRole("combobox", { name: "Shop", exact: true }).click()
+  await page.getByRole("option", { name: "Paper & Ink", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "No products found" })
+  ).toBeVisible()
+  await page
+    .getByRole("button", { name: "Reset filters", exact: true })
+    .first()
+    .click()
+  await expect(page.locator("[data-product-id]")).toHaveCount(12)
+
+  // "Find an item" type-ahead: picking a product narrows the market to it.
+  const findBox = page.getByRole("combobox", { name: "Find an item" })
+  await findBox.click()
+  await findBox.fill("tote")
+  await page.getByRole("option", { name: /Carry-all canvas tote/ }).click()
   await expect(page.locator("[data-product-id]")).toHaveCount(1)
+  await expect(page.locator("[data-product-id]")).toHaveAttribute(
+    "data-product-id",
+    "tote"
+  )
 })
 
-test("options and cart are pretend, dialogs restore keyboard focus", async ({
+test("collect into the item box, review in the rail, and centered checkout", async ({
   page,
 }) => {
   await enterMarket(page)
+  // Collect with an option chosen.
   await page
     .getByRole("combobox", { name: "Option for Everyday cotton tee" })
     .click()
   await page.getByRole("option", { name: "Large", exact: true }).click()
   await page
-    .getByRole("button", { name: "Add Everyday cotton tee to demo cart" })
+    .getByRole("button", { name: "Collect Everyday cotton tee" })
+    .click()
+  // Collecting the same item again stacks it (count 2, still one slot).
+  await page
+    .getByRole("button", { name: "Collect Everyday cotton tee" })
     .click()
   await expect(
-    page.getByText("Added Everyday cotton tee (Large) to the demo cart.", {
-      exact: true,
-    })
+    page.getByRole("button", { name: "Review found items, 2 total" })
   ).toBeVisible()
-  const cart = page.getByRole("button", { name: "Demo cart, 1 items" })
-  await cart.focus()
-  await page.keyboard.press("Enter")
-  const dialog = page.getByRole("dialog")
-  await expect(dialog).toBeVisible()
-  await page.keyboard.press("Tab")
-  expect(
-    await dialog.evaluate((element) => element.contains(document.activeElement))
-  ).toBe(true)
-  await page.keyboard.press("Escape")
-  await expect(cart).toBeFocused()
-  await cart.click()
-  await page.getByRole("button", { name: "Clear demo cart" }).click()
-  await page.keyboard.press("Escape")
+  const review = page.getByRole("button", {
+    name: "Review found items, 2 total",
+  })
+  await expect(review).toBeVisible()
+  // Review expands inline in the right rail — no overlay dialog.
+  await review.click()
+  const list = page.locator("#found-items-list")
+  await expect(list).toBeVisible()
   await expect(
-    page.getByRole("button", { name: "Demo cart, 0 items" })
+    list.getByText("Everyday cotton tee", { exact: true })
   ).toBeVisible()
+  // Remove one unit: the stack drops back to 1.
+  await list
+    .getByRole("button", { name: "Remove one Everyday cotton tee" })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "Review found items, 1 total" })
+  ).toBeVisible()
+  // Clear empties the box entirely.
+  await page.getByRole("button", { name: "Clear found items" }).click()
+  await expect(
+    page.getByRole("button", { name: "Review found items, 0 total" })
+  ).toBeVisible()
+  await expect(list).toHaveCount(0)
+  // Re-collect for the checkout leg of the test.
+  await page
+    .getByRole("button", { name: "Collect Everyday cotton tee" })
+    .click()
+  await page
+    .getByRole("button", { name: "Review found items, 1 total" })
+    .click()
+  await expect(list).toBeVisible()
+  // Check out opens the centered overlay; the grid hides behind it.
+  await list.getByRole("button", { name: "Check out (pretend)" }).click()
+  const checkout = page.getByRole("dialog", { name: "Checkout" })
+  await expect(checkout).toBeVisible()
+  await expect(page.locator(".study-grid")).toBeHidden()
+  await expect(
+    checkout.getByText("Everyday cotton tee", { exact: true }).last()
+  ).toBeVisible()
+  // Pay (pretend) closes the overlay and returns to the market.
+  await checkout.getByRole("button", { name: "Pay (pretend)" }).click()
+  await expect(checkout).toHaveCount(0)
+  await expect(page.locator(".study-grid")).toBeVisible()
+  // Product detail dialog still opens and restores focus on close.
   const product = page.getByRole("button", {
     name: "View Hand-thrown everyday mug",
   })
   await product.click()
+  const dialog = page.getByRole("dialog")
   await expect(
     dialog.getByRole("heading", { name: "Hand-thrown everyday mug" })
   ).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(product).toBeFocused()
+  // Session-only: the box resets on reload.
   await page.reload()
   await expect(
-    page.getByRole("button", { name: "Demo cart, 0 items" })
+    page.getByRole("button", { name: "Review found items, 0 total" })
   ).toBeVisible()
 })
 
@@ -254,9 +306,29 @@ test("theme cycles and persists without login; both appearances fit", async ({
   page,
 }, testInfo) => {
   await enterMarket(page)
-  const initial =
+  // The study defaults to dark (night-market) until the visitor picks a theme.
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-theme",
+    "night-market"
+  )
+  // Dark -> System: resolves to the device scheme (day on the phone project,
+  // night on the desktop project).
+  await page
+    .getByRole("button", {
+      name: "Appearance: Dark. Switch to System",
+      exact: true,
+    })
+    .click()
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-theme",
     testInfo.project.use.colorScheme === "dark" ? "night-market" : "day-market"
-  await expect(page.locator("html")).toHaveAttribute("data-theme", initial)
+  )
+  await page.screenshot({
+    path: testInfo.outputPath("system-appearance.png"),
+    animations: "disabled",
+    fullPage: true,
+  })
+  // System -> Light: the explicit day theme.
   await page
     .getByRole("button", {
       name: "Appearance: System. Switch to Light",
@@ -269,6 +341,7 @@ test("theme cycles and persists without login; both appearances fit", async ({
     animations: "disabled",
     fullPage: true,
   })
+  // Light -> Dark, then reload: the explicit choice persists.
   await page
     .getByRole("button", {
       name: "Appearance: Light. Switch to Dark",
@@ -298,17 +371,65 @@ test("theme cycles and persists without login; both appearances fit", async ({
   })
 })
 
-test("study controls expose loading and empty states", async ({ page }) => {
+test("settings rail toggles persist and change the market surface", async ({
+  page,
+}) => {
   await enterMarket(page)
-  await page.getByText("Study controls", { exact: true }).click()
-  await page.getByRole("combobox", { name: "Preview state" }).click()
-  await page.getByRole("option", { name: "Loading", exact: true }).click()
+
+  // Store labels are on by default; turning them off removes them from tiles.
+  await page
+    .getByRole("switch", { name: "Store labels on product tiles" })
+    .click()
+  // p.study-label is the store name; span.study-label is the artwork caption.
+  await expect(page.locator(".study-card p.study-label")).toHaveCount(0)
+
+  // Picture view packs the wall and hides the tile details (title/price/add).
+  await page.getByRole("button", { name: "Picture", exact: true }).click()
+  await expect(page.locator('.study-grid[data-tile="picture"]')).toBeVisible()
   await expect(
-    page.getByText("Loading sample products…", { exact: true })
+    page.getByRole("button", { name: "Collect Everyday cotton tee" })
+  ).toHaveCount(0)
+  // The cover-art tile is still an accessible "View …" control.
+  await expect(
+    page.getByRole("button", { name: "View Everyday cotton tee" })
   ).toBeVisible()
-  await expect(page.locator("[data-product-id]")).toHaveCount(0)
-  await page.getByRole("combobox", { name: "Preview state" }).click()
-  await page.getByRole("option", { name: "Empty", exact: true }).click()
+
+  // The pixel-field dials are retired: the tuned values are baked in as fixed
+  // defaults, so no tuning control appears in the dock.
+  await expect(page.getByRole("button", { name: "Field tuning" })).toHaveCount(
+    0
+  )
+  // Scanlines render a cosmetic overlay above the market.
+  await page.getByRole("switch", { name: "CRT scanlines" }).click()
+  await expect(page.locator(".study-scanlines")).toBeAttached()
+
+  // Settings persist across a reload (localStorage, clamped on read).
+  await page.reload()
+  await expect(page.locator("[data-start-screen]")).toHaveAttribute(
+    "data-open",
+    "false"
+  )
+  await expect(page.locator(".study-card p.study-label")).toHaveCount(0)
+  await expect(page.locator(".study-scanlines")).toBeAttached()
+
+  // Reset restores the defaults: labels back, info view, no scanlines.
+  await page.getByRole("button", { name: "Reset to defaults" }).click()
+  await expect(page.locator(".study-card p.study-label").first()).toBeVisible()
+  await expect(page.locator('.study-grid[data-tile="info"]')).toBeVisible()
+  await expect(page.locator(".study-scanlines")).toHaveCount(0)
+})
+
+test("filters drive the result count and empty state", async ({ page }) => {
+  await enterMarket(page)
+  await expect(page.locator("[data-product-id]")).toHaveCount(12)
+  // A filter that matches nothing shows the empty state; reset recovers.
+  await page.getByRole("combobox", { name: "Category" }).click()
+  await page.getByRole("option", { name: "Clothing", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "No products found" })
+  ).toBeHidden()
+  await page.getByRole("combobox", { name: "Shop", exact: true }).click()
+  await page.getByRole("option", { name: "Paper & Ink", exact: true }).click()
   await expect(
     page.getByRole("heading", { name: "No products found" })
   ).toBeVisible()
@@ -323,11 +444,23 @@ test("built page also runs without production services", async ({ page }) => {
   await enterMarket(page, "http://127.0.0.1:7071/")
   await expect(page.locator("[data-product-id]")).toHaveCount(12)
   await page
-    .getByRole("button", { name: "Add Carry-all canvas tote to demo cart" })
+    .getByRole("button", { name: "Collect Carry-all canvas tote" })
     .click()
-  await page.getByRole("button", { name: "Demo cart, 1 items" }).click()
-  await expect(page.getByRole("dialog")).toBeVisible()
-  await page.keyboard.press("Escape")
+  await page
+    .getByRole("button", { name: "Review found items, 1 total" })
+    .click()
+  await expect(page.locator("#found-items-list")).toBeVisible()
+  await page
+    .getByRole("button", { name: "Review found items, 1 total" })
+    .click()
+  await expect(page.locator("#found-items-list")).toHaveCount(0)
+  // Dark -> System -> Light: two clicks land on the explicit day theme.
+  await page
+    .getByRole("button", {
+      name: "Appearance: Dark. Switch to System",
+      exact: true,
+    })
+    .click()
   await page
     .getByRole("button", {
       name: "Appearance: System. Switch to Light",

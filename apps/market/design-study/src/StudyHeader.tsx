@@ -1,27 +1,12 @@
-import { Search, ShoppingCart } from "lucide-react"
 import { StudyThemeToggle } from "./StudyThemeToggle"
 // Study-local logo recolored to the Oshi palette purple (#9A72AA);
 // the production logo at apps/market/public/images/logo/logo-full.svg is untouched.
 import logo from "./logo-full-oshi.svg"
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Input,
-} from "./ui"
 
-type Props = {
-  query: string
-  onQuery: (query: string) => void
-  cartCount: number
-  onClearCart: () => void
-}
-
-export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
+// The header is brand + controls only. Product search lives in the left HUD
+// rail ("Find an item") and the found-items box is the bottom HUD, so there is
+// a single search surface and a single collection surface on the page.
+export function StudyHeader() {
   return (
     <header className="study-header-bar">
       <div className="study-shell study-header">
@@ -35,56 +20,8 @@ export function StudyHeader({ query, onQuery, cartCount, onClearCart }: Props) {
             market
           </span>
         </a>
-        <div className="study-search relative">
-          <label htmlFor="product-search" className="sr-only">
-            Search sample products
-          </label>
-          <Search
-            className="pointer-events-none absolute top-3 left-3 size-4 text-[var(--text-secondary)]"
-            aria-hidden="true"
-          />
-          <Input
-            id="product-search"
-            type="search"
-            placeholder="Search products or shops"
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            className="h-10 rounded-[var(--game-radius)] border-2 border-[var(--game-panel-border)] bg-[var(--game-slot-bg)] pl-9"
-          />
-        </div>
         <div className="study-status-controls">
           <StudyThemeToggle />
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="study-tab"
-                aria-label={`Demo cart, ${cartCount} items`}
-              >
-                <ShoppingCart className="size-4" aria-hidden="true" />
-                <span className="tabular-nums">{cartCount}</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Demo cart</DialogTitle>
-                <DialogDescription>
-                  {cartCount} sample {cartCount === 1 ? "item" : "items"} added.
-                  This counter resets on reload. No orders, payments, or real
-                  cart data are created.
-                </DialogDescription>
-              </DialogHeader>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={cartCount === 0}
-                onClick={onClearCart}
-              >
-                Clear demo cart
-              </Button>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
     </header>

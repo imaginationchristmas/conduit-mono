@@ -20,13 +20,23 @@ import {
 export function StudyProductCard({
   product,
   onAdd,
+  showStoreLabel = true,
+  tileMode = "info",
 }: {
   product: StudyProduct
   onAdd: (product: StudyProduct, option?: string) => void
+  showStoreLabel?: boolean
+  /** "picture" renders a cover-art-only tile (photo-wall browsing). */
+  tileMode?: "info" | "picture"
 }) {
   const [option, setOption] = useState(product.options?.[0])
+  const picture = tileMode === "picture"
   return (
-    <li className="study-card" data-product-id={product.id}>
+    <li
+      className="study-card"
+      data-product-id={product.id}
+      data-tile={tileMode}
+    >
       <Dialog>
         <DialogTrigger asChild>
           <button
@@ -34,10 +44,12 @@ export function StudyProductCard({
             className="study-product-link"
             aria-label={`View ${product.title}`}
           >
-            <ProductArtwork product={product} />
-            <h2 className="line-clamp-2 min-h-10 px-3 pt-3 text-left text-sm font-semibold text-balance sm:px-4 sm:text-base">
-              {product.title}
-            </h2>
+            <ProductArtwork product={product} mode={tileMode} />
+            {!picture && (
+              <h2 className="study-block study-card-title line-clamp-2">
+                {product.title}
+              </h2>
+            )}
           </button>
         </DialogTrigger>
         <DialogContent>
@@ -51,53 +63,70 @@ export function StudyProductCard({
             </DialogDescription>
           </DialogHeader>
           <ProductArtwork product={product} />
-          <p className="font-semibold tabular-nums">
+          <p
+            className="tabular-nums"
+            style={{
+              fontSize: "var(--step-0)",
+              fontWeight: "var(--weight-semibold)",
+            }}
+          >
             {formatSats(product.sats)}
           </p>
-          <p className="text-sm text-[var(--text-secondary)] text-pretty">
+          <p
+            className="text-[var(--text-secondary)] text-pretty"
+            style={{ fontSize: "var(--step--1)" }}
+          >
             Use this space to explore product details. Shipping, checkout, and
             merchant links are intentionally disconnected.
           </p>
         </DialogContent>
       </Dialog>
-      <div className="flex flex-1 flex-col gap-2 p-2 pt-2 sm:p-3 sm:pt-2">
-        <p className="study-label">{product.store}</p>
-        {product.options && (
-          <Select value={option} onValueChange={setOption}>
-            <SelectTrigger aria-label={`Option for ${product.title}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {product.options.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
-          <span className="text-sm font-semibold tabular-nums">
-            {formatSats(product.sats)}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="study-tab h-9"
-            disabled={product.soldOut}
-            aria-label={
-              product.soldOut
-                ? `${product.title} is sold out`
-                : `Add ${product.title} to demo cart`
-            }
-            onClick={() => onAdd(product, option)}
-          >
-            {!product.soldOut && <Plus className="size-4" aria-hidden="true" />}
-            {product.soldOut ? "Sold out" : "Add"}
-          </Button>
+      {/* Picture mode is cover-art only: the tile keeps the artwork and the
+          accessible "View …" button, with details in the dialog. */}
+      {!picture && (
+        <div className="study-card-blocks">
+          {showStoreLabel && (
+            <p className="study-label study-block">{product.store}</p>
+          )}
+          {product.options && (
+            <Select value={option} onValueChange={setOption}>
+              <SelectTrigger aria-label={`Option for ${product.title}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {product.options.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <div className="mt-auto flex flex-wrap items-stretch justify-between gap-2">
+            <span className="study-block study-block-price">
+              {formatSats(product.sats)}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="study-tab h-9"
+              disabled={product.soldOut}
+              aria-label={
+                product.soldOut
+                  ? `${product.title} is sold out`
+                  : `Collect ${product.title}`
+              }
+              onClick={() => onAdd(product, option)}
+            >
+              {!product.soldOut && (
+                <Plus className="size-4" aria-hidden="true" />
+              )}
+              {product.soldOut ? "Sold out" : "Add"}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </li>
   )
 }

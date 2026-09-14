@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import type { MotionLevel } from "./settings"
 
 /*
  * MarketQuest living pixel field (Phase 2.7, expanded).
@@ -14,6 +15,10 @@ import { useEffect, useRef } from "react"
  *     just radially), so a fast swipe parts the field like a comet and a slow
  *     hover only nudges. A short trail of recently-visited cells stays
  *     energized and colour-shifted, then cools back to the base.
+ *   • Click ripple — a tap on empty background drops an expanding ring that
+ *     shoves and ignites cells as its wavefront sweeps outward, then cools.
+ *     Taps on buttons, controls, cards, or the entry panel are ignored, so the
+ *     pulse only fires when the exposed pixels themselves are clicked.
  *   • Sparkles — a few cells at a time ignite into accent-coloured flares that
  *     scale up, glow, and die, like loot glinting in the grass. They spawn on
  *     a timer and near the pointer's path.
@@ -23,21 +28,21 @@ import { useEffect, useRef } from "react"
  * policy. Colours are read live from the --field-* custom properties so the
  * field follows the active Oshi theme without a restart.
  *
- * Performance: the grid is coarse (CELL px cells), the loop is O(cols*rows),
- * and the rAF only runs while something is moving (pointer active, cells
- * easing, or a sparkle alive). Under `prefers-reduced-motion: reduce` the
- * field renders once as a static grid and never listens for the pointer.
+ * Performance: the grid is coarse (CELL px cells) and the loop is O(cols*rows).
+ * Ambient sparkles spawn on a timer, so the rAF stays alive even at rest; only
+ * under `prefers-reduced-motion: reduce` does the field render once as a
+ * static grid and never listen for the pointer.
  */
 
 type RGB = [number, number, number]
 
-const CELL = 20 // px per grid cell at 1x (denser → reads as a wave, not gaps)
-const GAP = 1.5 // px gap between cells (tight, near-contiguous)
+const CELL = 9 // px per grid cell at 1x — small squares keep the pixel look
+const GAP = 0.75 // px gap between cells (tight, near-contiguous)
 const RADIUS = 180 // px influence radius around the pointer (at rest)
-const PUSH = 30 // max px a cell is displaced at the centre (at full energy)
-const EASE = 0.14 // per-frame ease toward the displaced position
-const SPEED_REF = 0.45 // px/ms that maps to "full" energy (a brisk swipe)
-const SPEED_SMOOTH = 0.55 // per-event smoothing on the velocity estimate
+const PUSH = 38 // max px a cell is displaced at the centre (at full energy)
+const EASE = 0.18 // per-frame ease toward the displaced position (fluid chase)
+const SPEED_REF = 0.26 // px/ms that maps to "full" energy (a light flick)
+const SPEED_SMOOTH = 0.35 // per-event smoothing; lower = reacts to flicks sooner
 const RIPPLE_SPEED = 0.55 // px/ms the click wavefront expands
 const RIPPLE_WIDTH = 90 // px thickness of the ripple band
 const RIPPLE_PUSH = 34 // max px the ripple shoves cells at the wavefront
@@ -49,6 +54,18 @@ const TRAIL = 9 // number of recent pointer samples that stay energized
 const SPARKLE_MAX = 14 // most sparkles alive at once
 const SPARKLE_LIFE = 900 // ms a sparkle lives
 const SPARKLE_EVERY = 240 // ms between sparkle spawns
+
+// Fixed field tuning. These were previously exposed as live dock dials; the
+// dialled values are now baked in as the defaults (the control was retired),
+// so the field always renders with this feel:
+//   POWER   — overall push/scale force
+//   REACH   — how far the pointer's influence spreads (radius multiplier)
+//   SNAP    — steepness of the speed → energy response
+//   SPARKLE — ambient sparkle rate (1 = SPARKLE_EVERY)
+const TUNE_POWER = 0.5
+const TUNE_REACH = 1.3
+const TUNE_SNAP = 0.9
+const TUNE_SPARKLE = 1
 
 function parseColor(value: string): RGB | null {
   const match = value.match(/#([0-9a-f]{6})/i)
@@ -87,10 +104,9 @@ type Ripple = {
   x: number // origin px
   y: number
   born: number // ms timestamp
-  accent: RGB
 }
 
-export function StudyPixelField() {
+export function StudyPixelField({ motion = "full" }: { motion?: MotionLevel }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -99,7 +115,16 @@ export function StudyPixelField() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)")
+    // The "Calm" setting forces the static field, layered on top of the OS
+    // prefers-reduced-motion preference (locked decision 3).
+    const reduced =
+      motion === "reduced" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+    // Fine cell spacing is the only density now; keep it as named constants
+    // so the grid maths reads the same as when it was a setting.
+    const cell = CELL
+    const gap = GAP
 
     let width = 0
     let height = 0
@@ -156,8 +181,8 @@ export function StudyPixelField() {
       height = rect.height
       canvas.width = Math.max(1, Math.round(width * dpr))
       canvas.height = Math.max(1, Math.round(height * dpr))
-      cols = Math.ceil(width / CELL) + 1
-      rows = Math.ceil(height / CELL) + 1
+      cols = Math.ceil(width / cell) + 1
+      rows = Math.ceil(height / cell) + 1
       const count = cols * rows
       ox = new Float32Array(count)
       oy = new Float32Array(count)
@@ -175,8 +200,8 @@ export function StudyPixelField() {
       if (nearX !== undefined && nearY !== undefined) {
         // Bias sparkles toward the pointer's neighbourhood so the comet
         // leaves a faint glittering wake.
-        col = Math.round(nearX / CELL + (Math.random() - 0.5) * 8)
-        row = Math.round(nearY / CELL + (Math.random() - 0.5) * 8)
+        col = Math.round(nearX / cell + (Math.random() - 0.5) * 8)
+        row = Math.round(nearY / cell + (Math.random() - 0.5) * 8)
       } else {
         col = Math.floor(Math.random() * cols)
         row = Math.floor(Math.random() * rows)
@@ -192,7 +217,7 @@ export function StudyPixelField() {
     const draw = (now: number) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
-      const size = CELL - GAP
+      const size = cell - gap
 
       // Index sparkles by cell for O(1) lookup during the draw pass.
       const sparkleByCell = new Map<number, Sparkle>()
@@ -201,8 +226,8 @@ export function StudyPixelField() {
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const i = row * cols + col
-          const cx = col * CELL + CELL / 2
-          const cy = row * CELL + CELL / 2
+          const cx = col * cell + cell / 2
+          const cy = row * cell + cell / 2
 
           // Ambient drift: a slow diagonal wave nudges every cell so the field
           // breathes even at rest. Kept tiny so it never fights the pointer.
@@ -254,12 +279,16 @@ export function StudyPixelField() {
     const step = (now: number) => {
       let active = false
 
+      // Sparkle rate is fixed (TUNE_SPARKLE); 0 would disable ambient sparkles.
+      const sparkleEvery =
+        TUNE_SPARKLE <= 0.001 ? Infinity : SPARKLE_EVERY / TUNE_SPARKLE
+
       // Decay the trail: drop samples older than a moment.
       const trailCutoff = now - 420
       while (trail.length > 0 && trail[0].at < trailCutoff) trail.shift()
 
       // Spawn ambient sparkles on a timer, plus a wake sparkle near the pointer.
-      if (now - lastSparkleAt > SPARKLE_EVERY) {
+      if (now - lastSparkleAt > sparkleEvery) {
         lastSparkleAt = now
         spawnSparkle(now)
         if (pointerIn) spawnSparkle(now, pointerX, pointerY)
@@ -274,23 +303,26 @@ export function StudyPixelField() {
       // Speed also widens the influence radius and lengthens the comet, so a
       // quick gesture disturbs a larger swath.
       const speed = Math.hypot(pointerVX, pointerVY)
-      const raw = Math.min(1, speed / SPEED_REF)
+      // TUNE_SNAP steepens the speed→energy curve so a flick spikes harder.
+      const raw = Math.min(1, (speed * TUNE_SNAP) / SPEED_REF)
       const targetEnergy = Math.pow(raw, 2) // gentle floor, hot top end
       energy += (targetEnergy - energy) * 0.35 // ease energy itself, no pops
+
       const dirX = speed > 0.001 ? pointerVX / speed : 0
       const dirY = speed > 0.001 ? pointerVY / speed : 0
-      // Radius grows with speed: a fast cursor reaches further.
-      const radius = RADIUS * (0.75 + energy * 0.7)
+      // Radius grows with speed: a fast cursor reaches further. TUNE_REACH
+      // scales the whole influence radius so the comet disturbs a wider swath.
+      const radius = RADIUS * (0.75 + energy * 0.7) * TUNE_REACH
       // Displacement, scale, and colour all scale with energy — but the floor
       // stays high enough that even a slow hover clearly moves pixels.
-      const push = PUSH * (0.45 + energy * 0.55)
-      const gain = 0.45 + energy * 0.55
-
+      // TUNE_POWER scales the overall force.
+      const push = PUSH * (0.45 + energy * 0.55) * TUNE_POWER
+      const gain = (0.45 + energy * 0.55) * TUNE_POWER
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const i = row * cols + col
-          const cx = col * CELL + CELL / 2
-          const cy = row * CELL + CELL / 2
+          const cx = col * cell + cell / 2
+          const cy = row * cell + cell / 2
 
           let tx = 0
           let ty = 0
@@ -324,7 +356,9 @@ export function StudyPixelField() {
             const dist = Math.hypot(dx, dy)
             if (dist < radius && dist > 0.001) {
               const t = 1 - dist / radius
-              const force = t * t // ease-out falloff
+              // Smoothstep falloff: hot at the centre, gliding to zero at the
+              // rim, which reads as a fluid swell rather than a hard edge.
+              const force = t * t * (3 - 2 * t)
               // Radial push plus a directional shove along the pointer's
               // travel, so the field parts like a comet passing through. Both
               // scale with energy, so a slow hover only nudges.
@@ -371,16 +405,18 @@ export function StudyPixelField() {
       }
 
       // Velocity and energy decay each frame so the comet shove fades after a
-      // flick and the field settles back to a gentle ripple.
-      pointerVX *= 0.86
-      pointerVY *= 0.86
-      energy *= 0.94
+      // flick and the field settles back to a gentle ripple. Slower velocity
+      // decay lets the comet glide longer, which reads as smoother/fluid.
+      pointerVX *= 0.92
+      pointerVY *= 0.92
+      energy *= 0.95
 
       draw(now)
 
       // Keep the loop alive while anything moves: pointer, easing cells, a
-      // live sparkle, or an expanding ripple. The ambient wave alone does NOT
-      // keep it running, so an idle field still settles to zero cost.
+      // live sparkle, or an expanding ripple. Ambient sparkles spawn on a
+      // timer, so in practice the loop keeps ticking even at rest; it only
+      // parks when reduced-motion disables the field entirely.
       if (active || pointerIn || sparkles.length > 0 || ripples.length > 0) {
         raf = window.requestAnimationFrame(step)
       } else {
@@ -437,16 +473,34 @@ export function StudyPixelField() {
       kick() // let cells ease back to rest, then the loop stops
     }
 
-    // A click drops a ripple at the pointer: an expanding ring that shoves and
-    // ignites cells as it sweeps outward, then cools. This is the "pulse that
-    // reverberates" — a deliberate tap sends a wave through the whole field.
+    // The field sits under the UI (pointer-events: none), so a click lands on
+    // whatever foreground element is there. The entry overlay is transparent
+    // and full-viewport, so its *panel* (not the overlay itself) is the thing
+    // to ignore — tapping the exposed pixels around the panel should still
+    // ripple. Buttons, controls, and cards are ignored for the same reason.
+    const isFieldBackground = (target: EventTarget | null): boolean => {
+      const el = target instanceof Element ? target : null
+      if (!el) return true
+      return !el.closest(
+        "button, a, input, select, textarea, label, summary, dialog, " +
+          "[role='dialog'], [role='button'], [role='menuitem'], " +
+          "[role='option'], [contenteditable='true'], " +
+          ".study-entry-inner, .study-entry-panel, .study-header-bar, " +
+          ".study-notice, .study-panel, .study-card, .study-side"
+      )
+    }
+
+    // A background click drops a ripple at the pointer: an expanding ring that
+    // shoves and ignites cells as it sweeps outward, then cools. This is the
+    // "pulse that reverberates" — a deliberate tap on empty space sends a wave
+    // through the whole field.
     const onPointerDown = (event: PointerEvent) => {
+      if (!isFieldBackground(event.target)) return
       const rect = canvas.getBoundingClientRect()
       const x = event.clientX - rect.left
       const y = event.clientY - rect.top
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) return
-      const accent = accents[Math.floor(Math.random() * accents.length)]
-      ripples.push({ x, y, born: performance.now(), accent })
+      ripples.push({ x, y, born: performance.now() })
       // A click also throws a small burst of sparkles around the impact point.
       const now = performance.now()
       for (let n = 0; n < 3; n++) spawnSparkle(now, x, y)
@@ -456,7 +510,7 @@ export function StudyPixelField() {
     resize()
     window.addEventListener("resize", resize)
 
-    if (!reduced.matches) {
+    if (!reduced) {
       window.addEventListener("pointermove", onPointerMove, { passive: true })
       window.addEventListener("pointerdown", onPointerDown, { passive: true })
       document.addEventListener("pointerleave", onPointerLeave)
@@ -480,7 +534,7 @@ export function StudyPixelField() {
       observer.disconnect()
       if (raf) window.cancelAnimationFrame(raf)
     }
-  }, [])
+  }, [motion])
 
   return (
     <canvas ref={canvasRef} className="study-pixel-field" aria-hidden="true" />

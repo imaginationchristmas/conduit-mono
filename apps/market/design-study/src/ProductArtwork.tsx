@@ -21,7 +21,15 @@ const icons = {
   notebook: NotebookPen,
 }
 
-export function ProductArtwork({ product }: { product: StudyProduct }) {
+export function ProductArtwork({
+  product,
+  mode = "info",
+}: {
+  product: StudyProduct
+  /** "picture" drops the in-slot caption for a cover-art-only photo wall. */
+  mode?: "info" | "picture"
+}) {
+  const coverOnly = mode === "picture"
   if (product.image) {
     return (
       <img
@@ -34,15 +42,21 @@ export function ProductArtwork({ product }: { product: StudyProduct }) {
   }
   const Icon = product.artwork ? icons[product.artwork] : ImageOff
   return (
-    <div className="study-artwork" data-artwork={product.artwork ?? "missing"}>
+    <div
+      className="study-artwork"
+      data-artwork={product.artwork ?? "missing"}
+      data-cover-only={coverOnly ? "true" : undefined}
+    >
       <Icon
-        className="size-14 sm:size-16"
+        className={coverOnly ? "size-20 sm:size-24" : "size-14 sm:size-16"}
         strokeWidth={1.75}
         aria-hidden="true"
       />
-      <span className="study-label">
-        {product.artwork ? "Sample artwork" : "No image available"}
-      </span>
+      {!coverOnly && (
+        <span className="study-label">
+          {product.artwork ? "Sample artwork" : "No image available"}
+        </span>
+      )}
     </div>
   )
 }
