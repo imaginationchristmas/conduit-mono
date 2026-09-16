@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react"
+import { Minus, Plus } from "lucide-react"
 import { formatSats, type StudyProduct } from "./fixtures"
 import { categories, products, stores } from "./fixtures"
 import { GameHud, type FoundItem } from "./GameHud"
 import { FoundItemSlot } from "./FoundItemSlot"
+import { ProductArtwork } from "./ProductArtwork"
 import { StudyDock } from "./StudyDock"
 import { StudyEntryScreen } from "./StudyEntryScreen"
 import { StudyHeader } from "./StudyHeader"
@@ -37,8 +39,10 @@ export function StudyPage() {
   const [store, setStore] = useState("all")
   const [sort, setSort] = useState("featured")
   const [foundItems, setFoundItems] = useState<FoundItem[]>([])
-  // Centered checkout overlay (like the entry screen): the market hides while
-  // it is open so the payment fields are easy to read.
+  // In-place main-view navigation: the grid swaps for a detail panel or the
+  // checkout panel inside the market shell — no overlay window — so browsing
+  // never leaves the market screen. The two views are mutually exclusive.
+  const [detailProduct, setDetailProduct] = useState<StudyProduct | null>(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   // Phase 3 settings: loaded once from localStorage, persisted on change.
   const [settings, setSettings] = useState<StudySettings>(loadSettings)
@@ -101,6 +105,75 @@ export function StudyPage() {
     })
   }
 
+  // Closing the in-place detail view returns focus to the originating tile so
+  // keyboard users resume browsing where they left off.
+  function closeDetail() {
+    const productId = detailProduct?.id
+    setDetailProduct(null)
+    window.setTimeout(() => {
+      const tile =
+        productId !== undefined
+          ? mainRef.current?.querySelector(
+              `[data-product-id="${productId}"] .study-product-link`
+            )
+          : null
+      if (tile instanceof HTMLElement) {
+        tile.focus()
+      } else {
+        mainRef.current?.focus()
+      }
+    }, 0)
+  }
+
+  // Opening checkout swaps whatever the main view is showing (grid or detail)
+  // for the checkout panel, same in-place pattern as the product detail.
+  function openCheckout() {
+    setDetailProduct(null)
+    setCheckoutOpen(true)
+  }
+
+  // Closing the in-place checkout view returns focus to the "Check out" button
+  // in the found-items rail so keyboard users resume where they left off.
+  function closeCheckout() {
+    setCheckoutOpen(false)
+    window.setTimeout(() => {
+      const trigger = document.querySelector<HTMLElement>(
+        "[data-checkout-trigger]"
+      )
+      if (trigger) {
+        trigger.focus()
+      } else {
+        mainRef.current?.focus()
+      }
+    }, 0)
+  }
+
+  // Clicking an item title in checkout swaps straight to that item's in-place
+  // detail view (same navigation pattern as the grid), so the shopper can
+  // review the listing without losing their collected items.
+  function viewCheckoutItem(product: StudyProduct) {
+    setCheckoutOpen(false)
+    setDetailProduct(product)
+  }
+
+  // Quantity steppers at checkout mirror the found-items rail: plus collects
+  // another unit, minus removes one (the stack disappears at zero).
+  function incrementItem(product: StudyProduct) {
+    collectItem(product)
+  }
+
+  function decrementItem(product: StudyProduct) {
+    setFoundItems((items) =>
+      items
+        .map((item) =>
+          item.product.id === product.id
+            ? { ...item, count: item.count - 1 }
+            : item
+        )
+        .filter((item) => item.count > 0)
+    )
+  }
+
   // Leaving the entry overlay always marks the session and lands focus in the
   // revealed market. Skip, category tile, merchant chip, and "browse all" all
   // funnel through here so the handoff behaves identically.
@@ -152,7 +225,6 @@ export function StudyPage() {
     <div
       className="study-page"
       data-entry-open={entry !== null ? "true" : undefined}
-      data-checkout-open={checkoutOpen ? "true" : undefined}
     >
       <div
         className="study-notice px-4 py-2 text-center"
@@ -163,9 +235,8 @@ export function StudyPage() {
       </div>
       <div
         className="study-market"
-        data-checkout-open={checkoutOpen ? "true" : undefined}
-        inert={entry !== null || checkoutOpen ? true : undefined}
-        aria-hidden={entry !== null || checkoutOpen ? true : undefined}
+        inert={entry !== null ? true : undefined}
+        aria-hidden={entry !== null ? true : undefined}
       >
         <a href="#products" className="study-skip-link">
           Skip to products
@@ -198,7 +269,141 @@ export function StudyPage() {
           tabIndex={-1}
           className="study-shell py-7 sm:py-10"
         >
-          {shownProducts.length > 0 ? (
+          {checkoutOpen ? (
+            <section className="study-checkout" aria-label="Checkout">
+              <button
+                type="button"
+                className="study-tab study-detail-back"
+                onClick={closeCheckout}
+              >
+                ← Back to market
+              </button>
+              <div className="study-checkout-info">
+                <h2 className="study-detail-title">Checkout</h2>
+                <p
+                  className="study-checkout-note"
+                  style={{ fontSize: "var(--step--1)" }}
+                >
+                  Design preview — no real payment happens. This is where
+                  payment fields (Lightning invoice, NWC, WebLN) will be
+                  explored.
+                </p>
+                {foundItems.length === 0 ? (
+                  <p
+                    className="study-checkout-empty"
+                    style={{ fontSize: "var(--step--1)" }}
+                  >
+                    Nothing collected yet.
+                  </p>
+                ) : (
+                  <ul
+                    className="study-checkout-list"
+                    aria-label="Items to check out"
+                  >
+                    {foundItems.map((item) => (
+                      <li key={item.product.id} className="study-checkout-row">
+                        <FoundItemSlot
+                          product={item.product}
+                          count={item.count}
+                        />
+                        <button
+                          type="button"
+                          className="study-checkout-row-title study-checkout-item-link"
+                          aria-label={`View ${item.product.title}`}
+                          onClick={() => viewCheckoutItem(item.product)}
+                        >
+                          {item.product.title}
+                        </button>
+                        <span
+                          className="study-checkout-qty"
+                          role="group"
+                          aria-label={`Quantity of ${item.product.title}`}
+                        >
+                          <button
+                            type="button"
+                            className="study-checkout-qty-btn"
+                            aria-label={`Remove one ${item.product.title}`}
+                            onClick={() => decrementItem(item.product)}
+                          >
+                            <Minus className="size-4" aria-hidden="true" />
+                          </button>
+                          <span
+                            key={item.count}
+                            className="study-checkout-qty-count tabular-nums"
+                            aria-hidden="true"
+                          >
+                            {item.count}
+                          </span>
+                          <button
+                            type="button"
+                            className="study-checkout-qty-btn"
+                            aria-label={`Add one ${item.product.title}`}
+                            onClick={() => incrementItem(item.product)}
+                          >
+                            <Plus className="size-4" aria-hidden="true" />
+                          </button>
+                        </span>
+                        <span className="study-checkout-row-price tabular-nums">
+                          {formatSats(item.product.sats * item.count)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="study-checkout-footer">
+                  <span className="study-checkout-total tabular-nums">
+                    {formatSats(checkoutTotalSats)}
+                  </span>
+                  <Button
+                    type="button"
+                    className="study-tab study-btn-accent"
+                    disabled={foundItems.length === 0}
+                    onClick={closeCheckout}
+                  >
+                    Pay (pretend)
+                  </Button>
+                </div>
+              </div>
+            </section>
+          ) : detailProduct ? (
+            <section
+              className="study-detail"
+              aria-label={`${detailProduct.title} details`}
+            >
+              <button
+                type="button"
+                className="study-tab study-detail-back"
+                onClick={closeDetail}
+              >
+                ← Back to market
+              </button>
+              <div className="study-detail-artwork">
+                <ProductArtwork product={detailProduct} />
+              </div>
+              <div className="study-detail-info">
+                <h2 className="study-detail-title">{detailProduct.title}</h2>
+                <p className="study-detail-store">
+                  Sample listing from {detailProduct.store}. This is a design
+                  preview, not a product for sale.
+                </p>
+                <p className="study-detail-price tabular-nums">
+                  {formatSats(detailProduct.sats)}
+                </p>
+                <p className="study-detail-note">
+                  Use this space to explore product details. Shipping, checkout,
+                  and merchant links are intentionally disconnected.
+                </p>
+                <Button
+                  type="button"
+                  className="study-tab study-btn-accent"
+                  disabled={detailProduct.soldOut}
+                  onClick={() => collectItem(detailProduct)}
+                >
+                  {detailProduct.soldOut ? "Sold out" : "Collect"}
+                </Button>
+              </div>
+            </section>
+          ) : shownProducts.length > 0 ? (
             <ul
               className="study-grid"
               data-tile={settings.tileMode}
@@ -209,6 +414,7 @@ export function StudyPage() {
                   key={product.id}
                   product={product}
                   onAdd={collectItem}
+                  onView={setDetailProduct}
                   showStoreLabel={settings.showStoreLabels}
                   tileMode={settings.tileMode}
                 />
@@ -263,7 +469,8 @@ export function StudyPage() {
               part of the game HUD instead of a floating bottom bar. */}
           <GameHud
             items={foundItems}
-            onCheckout={() => setCheckoutOpen(true)}
+            onCheckout={openCheckout}
+            onView={setDetailProduct}
             onRemove={(product) =>
               setFoundItems((items) =>
                 items
@@ -300,75 +507,6 @@ export function StudyPage() {
         onChooseStore={chooseStore}
         onBrowseAll={browseAll}
       />
-      {/* Centered checkout overlay: same frame language as the entry screen.
-          The market is inert and visually hidden behind it while open. */}
-      {checkoutOpen && (
-        <div
-          className="study-checkout"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Checkout"
-        >
-          <div className="study-checkout-inner">
-            <h1 className="study-checkout-title">Checkout</h1>
-            <p
-              className="study-checkout-note"
-              style={{ fontSize: "var(--step--1)" }}
-            >
-              Design preview — no real payment happens. This is where payment
-              fields (Lightning invoice, NWC, WebLN) will be explored.
-            </p>
-            {foundItems.length === 0 ? (
-              <p
-                className="study-checkout-empty"
-                style={{ fontSize: "var(--step--1)" }}
-              >
-                Nothing collected yet.
-              </p>
-            ) : (
-              <ul
-                className="study-checkout-list"
-                aria-label="Items to check out"
-              >
-                {foundItems.map((item) => (
-                  <li key={item.product.id} className="study-checkout-row">
-                    <FoundItemSlot product={item.product} count={item.count} />
-                    <span className="study-checkout-row-title">
-                      {item.product.title}
-                    </span>
-                    <span className="study-checkout-row-price tabular-nums">
-                      {formatSats(item.product.sats * item.count)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="study-checkout-footer">
-              <span className="study-checkout-total tabular-nums">
-                {formatSats(checkoutTotalSats)}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="study-tab"
-                  onClick={() => setCheckoutOpen(false)}
-                >
-                  Back to market
-                </Button>
-                <Button
-                  type="button"
-                  className="study-tab study-btn-accent"
-                  disabled={foundItems.length === 0}
-                  onClick={() => setCheckoutOpen(false)}
-                >
-                  Pay (pretend)
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -51,6 +51,13 @@
   --panel-blur: 2px;
   --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* transitions.dev "accordion expand" (#21) variables — the rail disclosure
+     and the HUD review panel. */
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   /* Swiss modular scale — 1.250 major third on a 16px base.
      Role map:
        --step--1  captions, HUD micro-labels, dock labels, store tags
@@ -129,6 +136,13 @@
 
   --study-card-radius: var(--game-radius);
   --study-card-background: var(--game-surface);
+
+  /* Motion tokens (transitions.dev scale) — only the tokens this study uses.
+     Scoped to the study; production tokens stay in packages/ui. */
+  --duration-quick: 150ms; /* text swap / number pop-in */
+  --ease-in-out: ease-in-out; /* text swap */
+  --distance-micro: 4px; /* text swap travel */
+  --blur-small: 2px; /* number pop-in softening */
 }
 
 /* To explore theme-specific values, add overrides inside these selectors.
@@ -400,6 +414,62 @@ summary {
 [data-radix-popper-content-wrapper] [cmdk-input]:focus-visible {
   outline: none !important;
   --tw-ring-color: transparent !important;
+}
+
+/* Dropdown panels (Category, Shop, Sort) open with the accordion motion
+   language (transitions.dev #21 tokens): the panel grows from the trigger
+   edge with a blur cross-fade on --acc-expand, and collapses symmetrically
+   on --acc-collapse (Radix keeps it mounted while the exit animation runs).
+   The panels mount on open, so a keyframe replaces the grid-rows track. */
+[data-radix-popper-content-wrapper] > * {
+  transform-origin: top;
+  animation: study-acc-open var(--acc-expand) var(--acc-ease);
+}
+[data-radix-popper-content-wrapper] > *[data-state="closed"] {
+  animation: study-acc-close var(--acc-collapse) var(--acc-ease);
+}
+@keyframes study-acc-open {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: scaleY(0.9);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scaleY(1);
+  }
+}
+@keyframes study-acc-close {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: scaleY(1);
+  }
+  to {
+    opacity: 0;
+    filter: blur(2px);
+    transform: scaleY(0.9);
+  }
+}
+/* The trigger chevrons flip with the same accordion scaleY (a "v" through a
+   flat line into a "^"), driven by Radix's data-state / aria-expanded. */
+.study-side [role="combobox"] > svg:last-of-type,
+.study-side button[aria-expanded] > svg:last-of-type {
+  transition: transform var(--acc-chevron) var(--acc-ease);
+}
+.study-side [role="combobox"][data-state="open"] > svg:last-of-type,
+.study-side button[aria-expanded="true"] > svg:last-of-type {
+  transform: scaleY(-1);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-radix-popper-content-wrapper] > * {
+    animation: none !important;
+  }
+  .study-side [role="combobox"] > svg:last-of-type,
+  .study-side button[aria-expanded] > svg:last-of-type {
+    transition: none !important;
+  }
 }
 
 /* Swiss hierarchy: page heading sits at step-3, weight medium */
@@ -824,6 +894,67 @@ body:has(.study-entry[data-open="true"]) {
   }
 }
 
+/* transitions.dev #21 accordion expand — pasted verbatim. Height animates
+   via grid-template-rows 0fr ↔ 1fr (no JS measuring); the inner element
+   clips overflow and cross-fades; the chevron flips vertically (scaleY),
+   passing through a flat line at the midpoint. */
+.t-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--acc-expand) var(--acc-ease);
+}
+.t-acc-panel-inner {
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(2px);
+  transition:
+    opacity var(--acc-collapse) var(--acc-ease),
+    filter var(--acc-collapse) var(--acc-ease);
+}
+/* Collapsed focusable content leaves the tab order via the `inert`
+   attribute (set by the components), not `visibility` — a visibility
+   override here would punch through ancestor `visibility: hidden`
+   hiding, e.g. the entry screen's market shell. */
+.t-acc[data-open="true"] .t-acc-panel-inner,
+.t-acc-panel[data-open="true"] > .t-acc-panel-inner {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity var(--acc-expand) var(--acc-ease),
+    filter var(--acc-expand) var(--acc-ease);
+}
+.t-acc-chevron {
+  display: inline-flex;
+  transform: scaleY(1);
+  transform-origin: center;
+  transition: transform var(--acc-chevron) var(--acc-ease);
+}
+.t-acc-chevron path {
+  vector-effect: non-scaling-stroke;
+}
+.t-acc[data-open="true"] .t-acc-chevron,
+.study-tab[aria-expanded="true"] .t-acc-chevron {
+  transform: scaleY(-1);
+}
+/* Study extension: the HUD review panel is its own track (the toggle button
+   lives outside it), so it carries data-open directly. */
+.t-acc-panel[data-open="true"] {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--acc-expand) var(--acc-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-acc-panel,
+  .t-acc-panel-inner,
+  .t-acc-chevron {
+    transition: none !important;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Phase 2 — market surface: paper frame, status bar, panels, tabs, footer.
  * ------------------------------------------------------------------------- */
@@ -1044,9 +1175,10 @@ body:has(.study-entry[data-open="true"]) {
   .study-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  /* Photo wall packs wider than the info grid at every breakpoint. */
+  /* Picture mode keeps the info grid's column count: without text blocks the
+     tiles simply grow larger instead of packing more per row. */
   .study-grid[data-tile="picture"] {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Header as a 2-column grid: brand left, controls right. Product search
      lives in the left HUD rail, so the header stays a quiet brand strip. */
@@ -1069,7 +1201,7 @@ body:has(.study-entry[data-open="true"]) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .study-grid[data-tile="picture"] {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1118,8 +1250,9 @@ body:has(.study-entry[data-open="true"]) {
     max-width: none;
   }
 }
-/* Each rail box is a foldable disclosure: the summary row is the panel title
-   with a chevron that flips when the panel collapses. */
+/* Each rail box is an accordion disclosure (transitions.dev #21): the title
+   row toggles data-open, the panel animates via grid-template-rows, and the
+   chevron flips vertically (scaleY) through a flat line at the midpoint. */
 .study-side-box {
   border: var(--game-border) solid var(--game-panel-border);
   border-radius: var(--game-radius);
@@ -1128,20 +1261,22 @@ body:has(.study-entry[data-open="true"]) {
     inset 1px 1px 0 var(--game-bevel-light),
     inset -1px -1px 0 var(--game-bevel-dark);
 }
-.study-side-box > summary {
-  list-style: none;
+.study-side-box > .study-side-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  width: 100%;
   padding: 1rem 1.25rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   user-select: none;
 }
-.study-side-box > summary::-webkit-details-marker {
-  display: none;
-}
-.study-side-box[open] > summary {
+.study-side-box[data-open="true"] > .study-side-title {
   border-bottom: var(--game-border) solid var(--game-panel-border);
 }
 .study-side-title {
@@ -1153,10 +1288,6 @@ body:has(.study-entry[data-open="true"]) {
 .study-side-chevron {
   flex-shrink: 0;
   color: var(--text-secondary);
-  transition: transform 160ms ease;
-}
-.study-side-box[open] .study-side-chevron {
-  transform: rotate(180deg);
 }
 .study-side-body {
   padding: 1.25rem;
@@ -1175,19 +1306,49 @@ body:has(.study-entry[data-open="true"]) {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-/* "Find an item" combobox (search-in-trigger mode): the shared Input inside
-   the trigger brings its own border + focus ring, which doubled with the
-   trigger wrapper's focus-within ring. Strip the inner chrome so the user
-   sees exactly one highlight. */
-.study-find-trigger input {
-  border: 0;
-  background: transparent;
-  height: 100%;
-  box-shadow: none;
+/* "Find an item" combobox (search-in-trigger mode): the trigger is a plain
+   div (no combobox role), so it needs the same hairline block treatment as
+   the other rail controls, and the shared Input inside it must contribute
+   no chrome of its own — one highlight, on the trigger, only. */
+.study-side [data-combobox-search-trigger] {
+  height: auto;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--game-ink) !important;
+  border-radius: var(--game-radius-lg) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: var(--step--1);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--game-ink);
 }
-.study-find-trigger input:focus-visible {
-  outline: none;
-  box-shadow: none;
+.study-side [data-combobox-search-trigger]:focus-within {
+  border-color: var(--game-select) !important;
+}
+/* Everything inside the trigger contributes zero chrome — no border, no
+   outline, no shadow, no fill — so the trigger's single hairline bar is the
+   only box the user sees. */
+.study-side [data-combobox-search-trigger] :is(input, [cmdk-input-wrapper]) {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+.study-side [data-combobox-search-trigger] [cmdk-input-wrapper] {
+  /* Align the magnifier with the labels above: it starts where their text
+     starts, and the gap to the field matches the label rhythm. */
+  padding-left: 0;
+  padding-right: 0;
+}
+.study-side [data-combobox-search-trigger] input {
+  height: 100%;
+}
+/* The shared Combobox renders an up/down chevron after the field; the rail
+   dropdowns don't need it — the field itself is the affordance. */
+.study-side [data-combobox-search-trigger] > svg:last-child {
+  display: none;
 }
 /* Rail and dock controls adopt the product-card block language: hairline
    outlined bars with no fill (the .study-block treatment on the tiles), so
@@ -1235,6 +1396,68 @@ body:has(.study-entry[data-open="true"]) {
 .study-side [role="switch"][data-state="checked"] {
   border-color: color-mix(in srgb, black 30%, var(--game-accent));
   background: var(--game-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * In-place product detail (replaces the grid in the main view)
+ *
+ * Clicking a listing swaps the grid for a detail panel inside the market
+ * shell — no overlay window. Same game-frame vocabulary as the cards.
+ * ------------------------------------------------------------------------- */
+.study-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  padding: 1.25rem;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+@media (max-width: 47.99rem) {
+  .study-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.study-detail-back {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.study-detail-artwork {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-slot-bg);
+  overflow: hidden;
+}
+.study-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.study-detail-title {
+  font-size: var(--step-2);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+.study-detail-store,
+.study-detail-note {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+}
+.study-detail-price {
+  font-size: var(--step-1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.study-detail-info .study-btn-accent {
+  align-self: flex-start;
 }
 
 /* Bottom HUD dock (OSRS-style toggle strip): one framed row of display
@@ -1402,18 +1625,24 @@ body:has(.study-entry[data-open="true"]) {
   font-weight: var(--weight-semibold);
   line-height: 1.2;
 }
-/* Inline review list (expanded in the rail, no overlay). */
+/* Inline review list (expanded in the rail, no overlay). The track is the
+   accordion panel (grid-template-rows via .t-acc-panel); the inner carries
+   the layout and the scroll so the 0fr track collapses to exactly zero —
+   no margin or padding may sit on the track. */
 .study-hud-list {
+  display: grid;
+  min-width: 0;
+}
+.study-hud-list-inner {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-block: 0.25rem 0.5rem;
-  padding-block: 0.25rem;
   min-width: 0;
   /* The list scrolls inside the panel so the total + pay button stay visible
-     no matter how many items are collected. */
+     no matter how many items are collected. overflow-x stays hidden so the
+     automatic minimum size is 0 and the track can collapse. */
   max-height: 40dvh;
-  overflow-y: auto;
+  overflow: hidden auto;
   scrollbar-width: thin;
 }
 .study-hud-list ul {
@@ -1437,6 +1666,23 @@ body:has(.study-entry[data-open="true"]) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* The collected-item title doubles as a link to that listing's in-place
+   detail view, same as the checkout item link. */
+.study-hud-item-link {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.15em;
+}
+.study-hud-item-link:hover {
+  text-decoration-color: currentColor;
 }
 .study-hud-row-price {
   flex-shrink: 0;
@@ -1467,46 +1713,37 @@ body:has(.study-entry[data-open="true"]) {
 }
 
 /* ---------------------------------------------------------------------------
- * Centered checkout overlay (Phase 4, revised)
+ * In-place checkout view (replaces the grid in the main view)
  *
- * Same frame language as the entry screen: a fixed full-viewport scrim with a
- * centered framed panel. The market behind it is inert and the product grid is
- * hidden so the payment fields read clearly.
+ * Same in-place pattern as the product detail: the grid swaps for a framed
+ * checkout panel inside the market shell — no overlay window, no scrim. Same
+ * game-frame vocabulary as the cards and the detail panel.
  * ------------------------------------------------------------------------- */
 .study-checkout {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: color-mix(in srgb, black 55%, transparent);
-}
-.study-checkout-inner {
-  width: min(100%, 34rem);
-  max-height: calc(100dvh - 2rem);
-  overflow-y: auto;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: start;
+  padding: 1.25rem;
   border: var(--game-border) solid var(--game-panel-border);
-  border-radius: var(--game-radius-lg);
+  border-radius: var(--game-radius);
   background: var(--game-surface);
   box-shadow:
     inset 1px 1px 0 var(--game-bevel-light),
     inset -1px -1px 0 var(--game-bevel-dark);
 }
-.study-checkout-title {
-  margin: 0;
-  font-size: var(--step-3);
-  font-weight: var(--weight-medium);
-  color: var(--text-primary);
+.study-checkout-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  width: 100%;
 }
 .study-checkout-note {
-  margin-top: 0.5rem;
   color: var(--text-secondary);
   text-wrap: pretty;
 }
 .study-checkout-empty {
-  margin-top: 1rem;
   color: var(--text-secondary);
 }
 .study-checkout-list {
@@ -1526,8 +1763,103 @@ body:has(.study-entry[data-open="true"]) {
 }
 .study-checkout-row-title {
   flex: 1;
+  min-width: 0;
   font-size: var(--step-0);
   color: var(--text-primary);
+}
+/* Item title doubles as a link back to that listing's in-place detail view. */
+.study-checkout-item-link {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.15em;
+}
+.study-checkout-item-link:hover {
+  text-decoration-color: currentColor;
+}
+/* Quantity stepper: minus / count / plus as one framed control pill, matching
+   the retro game-frame vocabulary. The pill carries the border and surface so
+   the icon buttons read clearly in both Day and Night themes; the buttons sit
+   flush inside it and tint toward the accent on hover. */
+.study-checkout-qty {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-slot-bg);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+  overflow: hidden;
+}
+.study-checkout-qty-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--game-accent);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-quick) var(--ease-in-out),
+    color var(--duration-quick) var(--ease-in-out);
+}
+.study-checkout-qty-btn:hover {
+  background: var(--game-accent);
+  color: var(--game-surface);
+}
+.study-checkout-qty-btn:focus-visible {
+  outline: 2px solid var(--game-accent);
+  outline-offset: -2px;
+}
+.study-checkout-qty-btn:active {
+  transform: translateY(1px);
+}
+.study-checkout-qty-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0 0.25rem;
+  border-inline: 1px solid var(--game-panel-border);
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  /* Number pop-in (transitions.dev): keyed remount replays this on each count
+     change — a quick 150ms text swap that lifts 4px and settles from a 2px
+     blur. */
+  animation: study-checkout-qty-pop var(--duration-quick) var(--ease-in-out);
+}
+@keyframes study-checkout-qty-pop {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-micro));
+    filter: blur(var(--blur-small));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-checkout-qty-count {
+    animation: none;
+  }
+  .study-checkout-qty-btn {
+    transition: none;
+  }
 }
 .study-checkout-row-price {
   font-size: var(--step--1);
@@ -1547,11 +1879,6 @@ body:has(.study-entry[data-open="true"]) {
   font-size: var(--step-1);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
-}
-/* While checkout is open, the product grid steps aside so the payment fields
-   are the only thing to read. */
-.study-market[data-checkout-open="true"] .study-grid {
-  visibility: hidden;
 }
 
 /* Desktop console layout: header strip on top, two pinned rails, the dock as

@@ -221,7 +221,7 @@ test("category, shop, sort, find-item, and empty recovery use fixtures", async (
   )
 })
 
-test("collect into the item box, review in the rail, and centered checkout", async ({
+test("collect into the item box, review in the rail, and inline checkout", async ({
   page,
 }) => {
   await enterMarket(page)
@@ -251,6 +251,17 @@ test("collect into the item box, review in the rail, and centered checkout", asy
   await expect(
     list.getByText("Everyday cotton tee", { exact: true })
   ).toBeVisible()
+  // Clicking a collected item's title in the cart rail opens that listing's
+  // in-place detail view; Back returns to the market grid.
+  await list.getByRole("button", { name: "View Everyday cotton tee" }).click()
+  const railDetail = page.locator(".study-detail")
+  await expect(railDetail).toBeVisible()
+  await expect(
+    railDetail.getByRole("heading", { name: "Everyday cotton tee" })
+  ).toBeVisible()
+  await railDetail.getByRole("button", { name: "Back to market" }).click()
+  await expect(railDetail).toHaveCount(0)
+  await expect(page.locator(".study-grid")).toBeVisible()
   // Remove one unit: the stack drops back to 1.
   await list
     .getByRole("button", { name: "Remove one Everyday cotton tee" })
@@ -263,7 +274,8 @@ test("collect into the item box, review in the rail, and centered checkout", asy
   await expect(
     page.getByRole("button", { name: "Review found items, 0 total" })
   ).toBeVisible()
-  await expect(list).toHaveCount(0)
+  // The panel is always mounted now (accordion animation); it hides instead.
+  await expect(list).toBeHidden()
   // Re-collect for the checkout leg of the test.
   await page
     .getByRole("button", { name: "Collect Everyday cotton tee" })
@@ -272,28 +284,79 @@ test("collect into the item box, review in the rail, and centered checkout", asy
     .getByRole("button", { name: "Review found items, 1 total" })
     .click()
   await expect(list).toBeVisible()
-  // Check out opens the centered overlay; the grid hides behind it.
+  // Check out swaps the grid for the in-place checkout panel (no overlay
+  // dialog), the same navigation pattern as the product detail view.
   await list.getByRole("button", { name: "Check out (pretend)" }).click()
-  const checkout = page.getByRole("dialog", { name: "Checkout" })
+  const checkout = page.locator(".study-checkout")
   await expect(checkout).toBeVisible()
-  await expect(page.locator(".study-grid")).toBeHidden()
+  // No modal dialog is involved.
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  // The grid is replaced in place, not hidden behind a scrim.
+  await expect(page.locator(".study-grid")).toHaveCount(0)
+  await expect(
+    checkout.getByRole("heading", { name: "Checkout" })
+  ).toBeVisible()
   await expect(
     checkout.getByText("Everyday cotton tee", { exact: true }).last()
   ).toBeVisible()
-  // Pay (pretend) closes the overlay and returns to the market.
+  // Quantity steppers adjust the stack at checkout: plus adds a unit, minus
+  // removes one. The line price and total update with the count.
+  await checkout
+    .getByRole("button", { name: "Add one Everyday cotton tee" })
+    .click()
+  await expect(
+    checkout.getByRole("button", { name: "Remove one Everyday cotton tee" })
+  ).toBeVisible()
+  await expect(checkout.locator(".study-checkout-qty-count")).toHaveText("2")
+  await checkout
+    .getByRole("button", { name: "Remove one Everyday cotton tee" })
+    .click()
+  await expect(checkout.locator(".study-checkout-qty-count")).toHaveText("1")
+  // Clicking the item title swaps straight to that listing's in-place detail
+  // view; Back returns to the market grid (the collected items are kept).
+  await checkout
+    .getByRole("button", { name: "View Everyday cotton tee" })
+    .click()
+  await expect(checkout).toHaveCount(0)
+  const teeDetail = page.locator(".study-detail")
+  await expect(teeDetail).toBeVisible()
+  await expect(
+    teeDetail.getByRole("heading", { name: "Everyday cotton tee" })
+  ).toBeVisible()
+  await teeDetail.getByRole("button", { name: "Back to market" }).click()
+  await expect(teeDetail).toHaveCount(0)
+  await expect(page.locator(".study-grid")).toBeVisible()
+  // Re-open checkout for the back-navigation leg.
+  await page.getByRole("button", { name: "Check out (pretend)" }).click()
+  await expect(checkout).toBeVisible()
+  // Back to market returns to the grid with focus restored to the trigger.
+  await checkout.getByRole("button", { name: "Back to market" }).click()
+  await expect(checkout).toHaveCount(0)
+  await expect(page.locator(".study-grid")).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Check out (pretend)" })
+  ).toBeFocused()
+  // Re-open and pay: Pay (pretend) also returns to the market.
+  await page.getByRole("button", { name: "Check out (pretend)" }).click()
+  await expect(checkout).toBeVisible()
   await checkout.getByRole("button", { name: "Pay (pretend)" }).click()
   await expect(checkout).toHaveCount(0)
   await expect(page.locator(".study-grid")).toBeVisible()
-  // Product detail dialog still opens and restores focus on close.
+  // Product detail replaces the grid in place (no overlay window) and Back
+  // returns to the market with focus restored.
   const product = page.getByRole("button", {
     name: "View Hand-thrown everyday mug",
   })
   await product.click()
-  const dialog = page.getByRole("dialog")
+  const detail = page.locator(".study-detail")
+  await expect(detail).toBeVisible()
+  await expect(page.locator(".study-grid")).toHaveCount(0)
   await expect(
-    dialog.getByRole("heading", { name: "Hand-thrown everyday mug" })
+    detail.getByRole("heading", { name: "Hand-thrown everyday mug" })
   ).toBeVisible()
-  await page.keyboard.press("Escape")
+  await detail.getByRole("button", { name: "Back to market" }).click()
+  await expect(detail).toHaveCount(0)
+  await expect(page.locator(".study-grid")).toBeVisible()
   await expect(product).toBeFocused()
   // Session-only: the box resets on reload.
   await page.reload()
@@ -453,7 +516,7 @@ test("built page also runs without production services", async ({ page }) => {
   await page
     .getByRole("button", { name: "Review found items, 1 total" })
     .click()
-  await expect(page.locator("#found-items-list")).toHaveCount(0)
+  await expect(page.locator("#found-items-list")).toBeHidden()
   // Dark -> System -> Light: two clicks land on the explicit day theme.
   await page
     .getByRole("button", {

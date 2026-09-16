@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, ChevronUp, Minus, Trash2 } from "lucide-react"
+import { ChevronDown, Minus, Trash2 } from "lucide-react"
 import { formatSats, type StudyProduct } from "./fixtures"
 import { FoundItemSlot } from "./FoundItemSlot"
 import { Button } from "./ui"
@@ -13,8 +13,10 @@ export type FoundItem = {
 
 type Props = {
   items: FoundItem[]
-  /** Opens the centered checkout overlay (owned by StudyPage). */
+  /** Opens the in-place checkout view (owned by StudyPage). */
   onCheckout: () => void
+  /** Opens the in-place detail view for a collected item (owned by StudyPage). */
+  onView: (product: StudyProduct) => void
   /** Removes one unit of a product from the box. */
   onRemove: (product: StudyProduct) => void
   /** Empties the box. */
@@ -23,9 +25,15 @@ type Props = {
 
 // Found-items box in the right HUD rail: a framed panel of square collectible
 // slots with a total count that pops on change. "Review" expands the collected
-// list inline in the same rail (no overlay); "Check out" opens the centered
-// checkout screen. Session-only — resets on reload.
-export function GameHud({ items, onCheckout, onRemove, onClear }: Props) {
+// list inline in the same rail (no overlay); "Check out" swaps the main view
+// for the in-place checkout panel. Session-only — resets on reload.
+export function GameHud({
+  items,
+  onCheckout,
+  onView,
+  onRemove,
+  onClear,
+}: Props) {
   const total = items.reduce((sum, item) => sum + item.count, 0)
   const totalSats = items.reduce(
     (sum, item) => sum + item.product.sats * item.count,
@@ -90,17 +98,24 @@ export function GameHud({ items, onCheckout, onRemove, onClear }: Props) {
             aria-label={`Review found items, ${total} total`}
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? (
-              <ChevronDown className="size-4" aria-hidden="true" />
-            ) : (
-              <ChevronUp className="size-4" aria-hidden="true" />
-            )}
+            {/* Accordion chevron (transitions.dev #21): flips vertically via
+                scaleY when the button is expanded. */}
+            <ChevronDown className="t-acc-chevron size-4" aria-hidden="true" />
             Review
           </Button>
         </div>
       </div>
-      {expanded && (
-        <div id="found-items-list" className="study-hud-list">
+      {/* Accordion panel (transitions.dev #21): always mounted so the height
+          animates via grid-template-rows; aria-hidden + visibility keep the
+          collapsed content out of the tab order. */}
+      <div
+        id="found-items-list"
+        className="study-hud-list t-acc-panel"
+        data-open={expanded ? "true" : "false"}
+        aria-hidden={!expanded}
+        inert={!expanded}
+      >
+        <div className="t-acc-panel-inner study-hud-list-inner">
           {items.length === 0 ? (
             <p className="study-hud-empty">
               Nothing collected yet. Use the Add button on a product tile.
@@ -110,12 +125,15 @@ export function GameHud({ items, onCheckout, onRemove, onClear }: Props) {
               {items.map((item) => (
                 <li key={item.product.id} className="study-hud-row">
                   <FoundItemSlot product={item.product} count={item.count} />
-                  <span
-                    className="study-hud-row-title"
+                  <button
+                    type="button"
+                    className="study-hud-row-title study-hud-item-link"
                     title={item.product.title}
+                    aria-label={`View ${item.product.title}`}
+                    onClick={() => onView(item.product)}
                   >
                     {item.product.title}
-                  </span>
+                  </button>
                   <span className="study-hud-row-price tabular-nums">
                     {formatSats(item.product.sats * item.count)}
                   </span>
@@ -142,12 +160,13 @@ export function GameHud({ items, onCheckout, onRemove, onClear }: Props) {
               className="study-tab study-btn-accent"
               disabled={total === 0}
               onClick={onCheckout}
+              data-checkout-trigger
             >
               Check out (pretend)
             </Button>
           </div>
         </div>
-      )}
+      </div>
       {/* Slot strip only when the review list is collapsed — no duplicate. */}
       {!expanded && (
         <div className="study-hud-slots">
