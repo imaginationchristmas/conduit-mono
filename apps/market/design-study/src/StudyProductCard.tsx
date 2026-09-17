@@ -4,12 +4,6 @@ import { formatSats, type StudyProduct } from "./fixtures"
 import { ProductArtwork } from "./ProductArtwork"
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -20,11 +14,14 @@ import {
 export function StudyProductCard({
   product,
   onAdd,
+  onView,
   showStoreLabel = true,
   tileMode = "info",
 }: {
   product: StudyProduct
   onAdd: (product: StudyProduct, option?: string) => void
+  /** Opens the in-place detail view (owned by StudyPage). */
+  onView: (product: StudyProduct) => void
   showStoreLabel?: boolean
   /** "picture" renders a cover-art-only tile (photo-wall browsing). */
   tileMode?: "info" | "picture"
@@ -37,50 +34,19 @@ export function StudyProductCard({
       data-product-id={product.id}
       data-tile={tileMode}
     >
-      <Dialog>
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            className="study-product-link"
-            aria-label={`View ${product.title}`}
-          >
-            <ProductArtwork product={product} mode={tileMode} />
-            {!picture && (
-              <h2 className="study-block study-card-title line-clamp-2">
-                {product.title}
-              </h2>
-            )}
-          </button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="pr-7 text-balance">
-              {product.title}
-            </DialogTitle>
-            <DialogDescription>
-              Sample listing from {product.store}. This is a design preview, not
-              a product for sale.
-            </DialogDescription>
-          </DialogHeader>
-          <ProductArtwork product={product} />
-          <p
-            className="tabular-nums"
-            style={{
-              fontSize: "var(--step-0)",
-              fontWeight: "var(--weight-semibold)",
-            }}
-          >
-            {formatSats(product.sats)}
-          </p>
-          <p
-            className="text-[var(--text-secondary)] text-pretty"
-            style={{ fontSize: "var(--step--1)" }}
-          >
-            Use this space to explore product details. Shipping, checkout, and
-            merchant links are intentionally disconnected.
-          </p>
-        </DialogContent>
-      </Dialog>
+      <button
+        type="button"
+        className="study-product-link"
+        aria-label={`View ${product.title}`}
+        onClick={() => onView(product)}
+      >
+        <ProductArtwork product={product} mode={tileMode} />
+        {!picture && (
+          <h2 className="study-block study-card-title line-clamp-2">
+            {product.title}
+          </h2>
+        )}
+      </button>
       {/* Picture mode is cover-art only: the tile keeps the artwork and the
           accessible "View …" button, with details in the dialog. */}
       {!picture && (

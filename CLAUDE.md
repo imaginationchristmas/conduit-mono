@@ -10,15 +10,17 @@ This is the Conduit monorepo - a decentralized Nostr-based commerce platform. Se
 - **Architecture**: `docs/ARCHITECTURE.md` - System diagrams, protocol, data flow
 - **Design**: `docs/DESIGN.md` - Shared design system and theming guidance
 - **Specs**: `docs/specs/*.md` - Feature specifications
+- **Design Study**: `Instructions.md` - Active design-study brief for the Market home/products redesign. Read this before any visual/design-element work; it defines the sandbox branch, scope limits (design-study folder only, no production apps or shared packages), and iteration expectations.
 
 ## Before Starting Implementation
 
 1. Read `docs/README.md` to understand which docs are authoritative.
 2. Read the relevant `docs/specs/*.md` before changing feature or protocol behavior.
 3. For UI/theming work, read `docs/DESIGN.md` before introducing shared style values or tokens.
-4. If the work changes product requirements, protocol behavior, or shared implementation expectations, update the relevant contract in the implementation PR before merge and keep contract and code aligned.
-5. Use `@conduit/core` Zod schemas for validation. Interop parsing stays best-effort, but shared contracts should be reflected in repo docs first.
-6. For Nostr protocol, relay, signer, messaging, payment, product-event, cache, or outbox work, read `docs/knowledge/external-nostr-references.md` and the relevant public NIP/Open Markets source before implementation.
+4. For any visual design or design-element iteration work, read `Instructions.md` first and follow its scope limits (design-study sandbox only, no production apps or shared packages).
+5. If the work changes product requirements, protocol behavior, or shared implementation expectations, update the relevant contract in the implementation PR before merge and keep contract and code aligned.
+6. Use `@conduit/core` Zod schemas for validation. Interop parsing stays best-effort, but shared contracts should be reflected in repo docs first.
+7. For Nostr protocol, relay, signer, messaging, payment, product-event, cache, or outbox work, read `docs/knowledge/external-nostr-references.md` and the relevant public NIP/Open Markets source before implementation.
 
 Product strategy, ticket status, ownership, sequencing, private commercial plans, and private operating context live outside this public repository.
 
