@@ -5,13 +5,17 @@ import { categories, products, stores } from "./fixtures"
 import { GameHud, type FoundItem } from "./GameHud"
 import { FoundItemSlot } from "./FoundItemSlot"
 import { ProductArtwork } from "./ProductArtwork"
+import { StudyCartDialog } from "./StudyCartDialog"
 import { StudyDock } from "./StudyDock"
 import { StudyEntryScreen } from "./StudyEntryScreen"
+import { StudyFiltersDialog } from "./StudyFiltersDialog"
 import { StudyHeader } from "./StudyHeader"
+import { StudyMobileDock } from "./StudyMobileDock"
 import { StudyPixelField } from "./StudyPixelField"
 import { StudyProductCard } from "./StudyProductCard"
 import { StudySidePanel } from "./StudySidePanel"
 import { loadSettings, saveSettings, type StudySettings } from "./settings"
+import { useIsMobileLayout } from "./useMediaQuery"
 import { Button } from "./ui"
 
 // Once-per-session gate for the retro entry screens. sessionStorage is scoped to
@@ -44,11 +48,29 @@ export function StudyPage() {
   // never leaves the market screen. The two views are mutually exclusive.
   const [detailProduct, setDetailProduct] = useState<StudyProduct | null>(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  // Mobile-only centered dialogs for the two rails (filters + found items).
+  // Desktop keeps the pinned rails; these stay closed there.
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const isMobile = useIsMobileLayout()
   // Phase 3 settings: loaded once from localStorage, persisted on change.
   const [settings, setSettings] = useState<StudySettings>(loadSettings)
   useEffect(() => {
     saveSettings(settings)
   }, [settings])
+
+  // Opening the in-place detail or checkout view swaps the main content but
+  // keeps the scroll position, so a user who had scrolled down the grid lands
+  // partway down the new view. Reset scroll to the top on open. The catalogue
+  // scrolls the <main> region on desktop (>=80rem) and the window on mobile,
+  // so reset both — scrolling an at-top / non-scrollable target is a no-op.
+  useEffect(() => {
+    if (detailProduct === null && !checkoutOpen) {
+      return
+    }
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" })
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+  }, [detailProduct, checkoutOpen])
 
   // Discovery options auto-populate from the same fixture set the market
   // renders, so the entry screen can never offer a category or merchant with no
@@ -126,8 +148,10 @@ export function StudyPage() {
   }
 
   // Opening checkout swaps whatever the main view is showing (grid or detail)
-  // for the checkout panel, same in-place pattern as the product detail.
+  // for the checkout panel, same in-place pattern as the product detail. Close
+  // the mobile cart dialog first so the revealed checkout view is visible.
   function openCheckout() {
+    setCartOpen(false)
     setDetailProduct(null)
     setCheckoutOpen(true)
   }
@@ -153,6 +177,13 @@ export function StudyPage() {
   // review the listing without losing their collected items.
   function viewCheckoutItem(product: StudyProduct) {
     setCheckoutOpen(false)
+    setDetailProduct(product)
+  }
+
+  // Viewing a collected item from the mobile cart dialog closes the dialog and
+  // opens the in-place detail view, so the revealed detail is visible.
+  function viewCartItem(product: StudyProduct) {
+    setCartOpen(false)
     setDetailProduct(product)
   }
 
@@ -220,6 +251,8 @@ export function StudyPage() {
     (sum, item) => sum + item.product.sats * item.count,
     0
   )
+  // Total collected units, shown as the badge on the mobile cart icon.
+  const foundCount = foundItems.reduce((sum, item) => sum + item.count, 0)
 
   return (
     <div
@@ -241,7 +274,11 @@ export function StudyPage() {
         <a href="#products" className="study-skip-link">
           Skip to products
         </a>
-        <StudyHeader />
+        <StudyHeader
+          onOpenFilters={() => setFiltersOpen(true)}
+          onOpenCart={() => setCartOpen(true)}
+          cartCount={foundCount}
+        />
         {/* Left HUD rail: filters as a foldable box. On desktop it is pinned;
             on mobile it stacks inline above the catalogue. "Find an item"
             type-ahead narrows the market to the chosen product. */}
@@ -492,7 +529,66 @@ export function StudyPage() {
       {settings.scanlines && (
         <div className="study-scanlines" aria-hidden="true" />
       )}
-      <StudyPixelField motion={settings.motion} />
+      {/* Mobile-only centered dialogs for the two rails. They render the shared
+          StudyFiltersBody / StudyCartBody, so the controls stay in sync with
+          the desktop rails. Rendered only below 80rem; desktop keeps the
+          pinned rails and never mounts these. Hidden while the start screen is
+          up (entry !== null) so the dock/dialogs only appear once the user is
+          on the market proper. */}
+      {isMobile && entry === null && (
+        <>
+          <StudyFiltersDialog
+            open={filtersOpen}
+            onOpenChange={setFiltersOpen}
+            category={category}
+            categories={categories}
+            onCategory={setCategory}
+            store={store}
+            stores={stores}
+            onStore={setStore}
+            sort={sort}
+            onSort={setSort}
+            onResetFilters={resetFilters}
+            products={products}
+            onFindItem={(product) => {
+              setQuery(product.title)
+              setCategory("All products")
+              setStore("all")
+              // Selecting an item applies the filter and dismisses the dialog
+              // so the listing is visible without a manual close.
+              setFiltersOpen(false)
+            }}
+            resultCount={shownProducts.length}
+          />
+          <StudyCartDialog
+            open={cartOpen}
+            onOpenChange={setCartOpen}
+            items={foundItems}
+            onCheckout={openCheckout}
+            onView={viewCartItem}
+            onRemove={(product) =>
+              setFoundItems((items) =>
+                items
+                  .map((item) =>
+                    item.product.id === product.id
+                      ? { ...item, count: item.count - 1 }
+                      : item
+                  )
+                  .filter((item) => item.count > 0)
+              )
+            }
+            onClear={() => setFoundItems([])}
+          />
+          {/* Mobile bottom dock: CRT / Labels / View toggles pinned to the
+              bottom of the viewport. No Motion toggle (the pixel field is
+              frozen below 80rem). Desktop keeps the full StudyDock. */}
+          <StudyMobileDock settings={settings} onSettings={setSettings} />
+        </>
+      )}
+      {/* Pixel-field motion is a desktop affordance: below 80rem the field
+          renders as a static grid (the field already freezes under
+          reduced-motion; here we extend the same gate to small viewports). */}
+      <StudyPixelField motion={isMobile ? "reduced" : settings.motion} />
       <StudyEntryScreen
         open={entry !== null}
         panel={entry ?? "title"}

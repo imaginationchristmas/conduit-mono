@@ -533,6 +533,107 @@ summary {
 .study-header-bar .study-status-controls {
   padding: 0.375rem 0.5rem;
 }
+/* Mobile-only panel triggers (filters / found-items cart). Each is its own
+   isolated bevel box floating in the header strip, matching the brand and
+   theme-control boxes, so the icons read as separate HUD buttons with clear
+   separation instead of crowding the theme toggle. Rendered only below 80rem
+   (the buttons are not in the DOM at >=80rem), so this never affects desktop. */
+.study-header-bar .study-header-icon-btn {
+  pointer-events: auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Match the theme-control box exactly: the toggle is 2.25rem tall inside
+     0.375rem vertical padding, so the box renders 3rem tall. Fix the same
+     height (and a square footprint) so all three header boxes align. */
+  height: 3rem;
+  width: 3rem;
+  padding: 0;
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius-lg);
+  background: var(--game-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-header-bar .study-header-icon-btn:hover {
+  border-color: var(--game-select);
+}
+/* Count badge on the cart icon: a small accent chip pinned to the box corner. */
+.study-header-icon-badge {
+  position: absolute;
+  top: -0.375rem;
+  right: -0.375rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding-inline: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--game-accent);
+  color: var(--game-surface);
+  font-size: 0.625rem;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+/* Mobile centered dialogs (filters / found-items cart): re-skin the shared
+   DialogContent (which ships rounded-xl + app surface/shadow/ring tokens) with
+   the study's retro bevel so the modal matches the rail boxes and header HUD.
+   This class is only applied by the two mobile dialogs, so desktop surfaces
+   (which never render these dialogs) are unaffected. */
+.study-dialog {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface-2);
+  color: var(--text-primary);
+  /* Condense the shared DialogContent's gap-4 (1rem) + p-6 (1.5rem) so the
+     filter fields and cart rows fit a small phone screen. */
+  gap: 0.75rem;
+  padding: 1rem;
+  /* Drop the shared dialog's app ring so only the game border reads, then
+     layer the retro bevel plus a soft drop shadow for the floating modal. */
+  --tw-ring-shadow: 0 0 #0000;
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark),
+    0 1rem 2.5rem rgb(0 0 0 / 0.45),
+    var(--tw-ring-shadow, 0 0 #0000);
+}
+.study-dialog-title {
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--step--1);
+}
+/* Footer holding the primary "Show results" action in the mobile filters
+   dialog. Full-width column on phones; a hairline top rule separates it from
+   the filter fields above. */
+.study-dialog-footer {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--game-panel-border);
+}
+/* Condense the field spacing inside the mobile dialogs. The shared
+   StudyFiltersBody uses mt-3 between fields / mt-4 on the reset button /
+   mb-3 + mb-1 on labels — generous on desktop but tall on a phone. These
+   overrides are scoped to .study-dialog, so the desktop rail spacing (which
+   renders the same body inside .study-side) is unchanged. */
+.study-dialog .mt-3 {
+  margin-top: 0.5rem;
+}
+.study-dialog .mt-4 {
+  margin-top: 0.75rem;
+}
+.study-dialog .mb-3 {
+  margin-bottom: 0.5rem;
+}
+.study-dialog .mb-1 {
+  margin-bottom: 0.25rem;
+}
 /* Brand lockup: the logo's "conduit" wordmark and the adjacent "market" label
    are matched to the same visual cap/x-height and both sit on the Swiss scale.
    The logo's "conduit" x-height measures 41.2 of the SVG's 115 units and the
@@ -546,6 +647,40 @@ summary {
   font-size: var(--study-brand-word);
   line-height: 1;
   font-weight: var(--weight-medium);
+}
+/* Small phones (iPhone 13 mini 375px, up to ~420px): the brand box + two 3rem
+   icon boxes + the theme box + the default 0.75rem gaps overflow one row, so
+   the icons wrap below the logo. Keep the header on a single fixed row by
+   forbidding wrap and shrinking the brand lockup, the icon boxes, and the
+   gaps. Above 26.25rem (e.g. Pixel 8 at 412px already fits, but this keeps it
+   comfortably one row) and on desktop the layout is unchanged. */
+@media (max-width: 26.25rem) {
+  .study-header {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+  }
+  .study-header-bar {
+    padding: 0.5rem 0.625rem;
+  }
+  .study-header-bar .study-header > a {
+    padding: 0.375rem 0.5rem;
+    gap: 0.375rem;
+  }
+  .study-brand-logo {
+    height: calc(var(--step-0) * 1.443);
+  }
+  .study-brand-word {
+    font-size: var(--step-0);
+  }
+  /* Match the shrunken theme box: the 2.25rem toggle + 0.25rem vertical
+     padding renders 2.75rem tall, so size the icon boxes to the same height. */
+  .study-header-bar .study-header-icon-btn {
+    height: 2.75rem;
+    width: 2.75rem;
+  }
+  .study-header-bar .study-status-controls {
+    padding: 0.25rem 0.375rem;
+  }
 }
 .study-grid {
   display: grid;
@@ -759,6 +894,20 @@ summary {
   font-size: var(--step--1);
   color: var(--text-secondary);
   text-decoration: underline;
+}
+/* Small phones (iPhone 13 mini, 375px): the --step-4 "MARKET QUEST" title plus
+   its 0.1em tracking and the entry box's horizontal padding overflow a ~325px
+   content box. Step the title down one rung, tighten the tracking, and trim
+   the panel padding so the box fits. Scoped to <=24rem (384px) so the Pixel 8
+   (412px) and everything larger keep the full-size title. */
+@media (max-width: 24rem) {
+  .study-entry .study-start-title {
+    font-size: var(--step-3);
+    letter-spacing: 0.06em;
+  }
+  .study-entry .study-entry-inner {
+    padding: clamp(1.5rem, 6vw, 4rem) clamp(1rem, 4vw, 3.5rem);
+  }
 }
 /* Keep the page from scrolling behind the fixed overlay while it is up. */
 body:has(.study-entry[data-open="true"]) {
@@ -986,6 +1135,18 @@ body:has(.study-entry[data-open="true"]) {
   box-shadow:
     inset 1px 1px 0 var(--game-bevel-light),
     inset -1px -1px 0 var(--game-bevel-dark);
+}
+/* On mobile the notice chip collides with the fixed bottom mobile dock, so
+   hide it below 80rem (the same info is on the entry screen). Desktop keeps
+   the chip. Also drop the product tile title one step (16px -> 12.8px) on
+   small screens so the cards read tighter; desktop titles are unchanged. */
+@media (max-width: 79.99rem) {
+  .study-notice {
+    display: none;
+  }
+  .study-card .study-card-title {
+    font-size: var(--step--1);
+  }
 }
 
 /* Zelda-style status bar directly under the header: slate, theme control, and
@@ -1301,6 +1462,17 @@ body:has(.study-entry[data-open="true"]) {
   :is(button, [role="switch"], select, input, summary) {
   scroll-margin-top: 10rem;
 }
+/* Mobile layout (below 80rem): the pinned left/right rails and the desktop
+   bottom dock are replaced by the two header icon buttons (which open centered
+   dialogs) and the mobile bottom dock. Hide the inline rails and the desktop
+   dock so they never render on small screens. The desktop grid block at
+   >=80rem is untouched, so the rails and dock reappear there unchanged. */
+@media (max-width: 79.99rem) {
+  .study-market > .study-side,
+  .study-market > .study-dock {
+    display: none;
+  }
+}
 .study-side-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1310,7 +1482,11 @@ body:has(.study-entry[data-open="true"]) {
    div (no combobox role), so it needs the same hairline block treatment as
    the other rail controls, and the shared Input inside it must contribute
    no chrome of its own — one highlight, on the trigger, only. */
-.study-side [data-combobox-search-trigger] {
+/* The same single-highlight treatment applies inside the mobile filters
+   dialog (.study-dialog), which renders the same StudyFiltersBody outside the
+   .study-side rail — without it the shared trigger's focus ring doubles with
+   the hairline border. */
+:is(.study-side, .study-dialog) [data-combobox-search-trigger] {
   height: auto;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--game-ink) !important;
@@ -1323,38 +1499,47 @@ body:has(.study-entry[data-open="true"]) {
   text-transform: uppercase;
   color: var(--game-ink);
 }
-.study-side [data-combobox-search-trigger]:focus-within {
+:is(.study-side, .study-dialog) [data-combobox-search-trigger]:focus-within {
   border-color: var(--game-select) !important;
 }
 /* Everything inside the trigger contributes zero chrome — no border, no
    outline, no shadow, no fill — so the trigger's single hairline bar is the
    only box the user sees. */
-.study-side [data-combobox-search-trigger] :is(input, [cmdk-input-wrapper]) {
+:is(.study-side, .study-dialog)
+  [data-combobox-search-trigger]
+  :is(input, [cmdk-input-wrapper]) {
   border: 0 !important;
   outline: none !important;
   box-shadow: none !important;
   background: transparent !important;
   border-radius: 0 !important;
 }
-.study-side [data-combobox-search-trigger] [cmdk-input-wrapper] {
+:is(.study-side, .study-dialog)
+  [data-combobox-search-trigger]
+  [cmdk-input-wrapper] {
   /* Align the magnifier with the labels above: it starts where their text
      starts, and the gap to the field matches the label rhythm. */
   padding-left: 0;
   padding-right: 0;
 }
-.study-side [data-combobox-search-trigger] input {
+:is(.study-side, .study-dialog) [data-combobox-search-trigger] input {
   height: 100%;
 }
 /* The shared Combobox renders an up/down chevron after the field; the rail
    dropdowns don't need it — the field itself is the affordance. */
-.study-side [data-combobox-search-trigger] > svg:last-child {
+:is(.study-side, .study-dialog)
+  [data-combobox-search-trigger]
+  > svg:last-child {
   display: none;
 }
 /* Rail and dock controls adopt the product-card block language: hairline
    outlined bars with no fill (the .study-block treatment on the tiles), so
    the nav panels read as the same design system as the listings. */
-.study-side [role="combobox"],
-.study-dock [role="combobox"] {
+/* The mobile filters dialog (.study-dialog) renders the same controls outside
+   the rail, so include it so the Category combobox and Shop/Sort select
+   triggers (all role="combobox") get the same single hairline treatment and
+   don't show the shared focus ring doubling with the border. */
+:is(.study-side, .study-dock, .study-dialog) [role="combobox"] {
   height: auto;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--game-ink) !important;
@@ -1367,12 +1552,11 @@ body:has(.study-entry[data-open="true"]) {
   text-transform: uppercase;
   color: var(--game-ink);
 }
-.study-side [role="combobox"]:hover,
-.study-dock [role="combobox"]:hover {
+:is(.study-side, .study-dock, .study-dialog) [role="combobox"]:hover {
   background: var(--game-surface) !important;
   border-color: var(--game-select) !important;
 }
-.study-side [role="combobox"] > span {
+:is(.study-side, .study-dock, .study-dialog) [role="combobox"] > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1506,6 +1690,45 @@ body:has(.study-entry[data-open="true"]) {
 .study-dock [role="switch"][data-state="checked"] {
   border-color: color-mix(in srgb, black 30%, var(--game-accent));
   background: var(--game-accent);
+}
+/* Mobile bottom dock: a fixed retro strip pinned to the bottom edge of the
+   viewport, holding the CRT / Labels / View toggles (no Motion — the pixel
+   field is frozen below 80rem). It reuses .study-dock-group / .study-dock-label
+   / .study-tab for the controls and only adds the fixed bar chrome here.
+   Rendered only below 80rem (StudyPage gates it), so desktop never mounts it.
+   The z-index sits under the dialogs (50) so the modals layer above it. */
+.study-mobile-dock {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1.25rem;
+  padding: 0.625rem 1rem;
+  border-top: var(--game-border) solid var(--game-panel-border);
+  background: var(--game-surface-2);
+  box-shadow:
+    inset 1px 1px 0 var(--game-bevel-light),
+    inset -1px -1px 0 var(--game-bevel-dark);
+}
+.study-mobile-dock [role="switch"] {
+  border: var(--game-border) solid var(--game-panel-border);
+  border-radius: var(--game-radius);
+  background: var(--game-surface);
+}
+.study-mobile-dock [role="switch"][data-state="checked"] {
+  border-color: color-mix(in srgb, black 30%, var(--game-accent));
+  background: var(--game-accent);
+}
+/* Keep the page's bottom content clear of the fixed mobile dock so the last
+   catalogue row / checkout footer is never hidden behind the strip. Desktop
+   (>=80rem) does not render the mobile dock, so this only applies below. */
+@media (max-width: 79.99rem) {
+  .study-market {
+    padding-bottom: 4.5rem;
+  }
 }
 
 /* ---------------------------------------------------------------------------

@@ -23,11 +23,12 @@ type Props = {
   onClear: () => void
 }
 
-// Found-items box in the right HUD rail: a framed panel of square collectible
-// slots with a total count that pops on change. "Review" expands the collected
-// list inline in the same rail (no overlay); "Check out" swaps the main view
-// for the in-place checkout panel. Session-only — resets on reload.
-export function GameHud({
+// The found-items content, rendered without any rail chrome. This is the
+// shared body: the desktop right rail (GameHud) wraps it in the pinned
+// <section className="study-hud">, and the mobile cart dialog (StudyCartDialog)
+// renders the same body inside a centered Dialog. One copy of the inventory
+// logic (count pop, review accordion, slot strip), two containers.
+export function StudyCartBody({
   items,
   onCheckout,
   onView,
@@ -62,7 +63,7 @@ export function GameHud({
   }, [items.length])
 
   return (
-    <section className="study-hud" aria-label="Found items">
+    <>
       <div className="study-hud-top">
         <div className="study-hud-slots-row">
           <span className="study-dock-label">Found</span>
@@ -183,6 +184,21 @@ export function GameHud({
           )}
         </div>
       )}
+    </>
+  )
+}
+
+// Found-items box in the right HUD rail: a framed panel of square collectible
+// slots with a total count that pops on change. "Review" expands the collected
+// list inline in the same rail (no overlay); "Check out" swaps the main view
+// for the in-place checkout panel. Session-only — resets on reload.
+//
+// Desktop rail chrome is unchanged: it renders the shared StudyCartBody inside
+// the existing <section className="study-hud">.
+export function GameHud(props: Props) {
+  return (
+    <section className="study-hud" aria-label="Found items">
+      <StudyCartBody {...props} />
     </section>
   )
 }
